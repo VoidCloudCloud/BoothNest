@@ -156,7 +156,7 @@ class ReleaseTests(unittest.TestCase):
         self.cfg.root = str(self.base / "different")
         with patch("boothlib.api.subprocess.Popen") as popen:
             self.assertTrue(self.api.reveal_item("demo.zip")["ok"])
-            self.assertEqual(popen.call_args.args[0][-1], str(self.root / "demo.zip"))
+            self.assertTrue(Path(popen.call_args.args[0][-1]).samefile(self.root / "demo.zip"))
 
     def test_external_open_is_restricted(self):
         self.assertFalse(self.api.open_path(str(self.base))["ok"])
