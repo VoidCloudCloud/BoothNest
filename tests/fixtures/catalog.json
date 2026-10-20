@@ -1,0 +1,455 @@
+{
+  "products": [
+    {
+      "id": "1000001",
+      "title": "Demo 1 Shinano 8",
+      "shop": "Demo Shop",
+      "cat_main": "3D服装",
+      "cat_subs": [
+        "示例"
+      ],
+      "avatars": [
+        "Shinano"
+      ],
+      "local_folders": [
+        "demo-1.zip"
+      ],
+      "local_bytes": 25600,
+      "published_at": "2026-01-01",
+      "price_min": 100
+    },
+    {
+      "id": "1000002",
+      "title": "Demo 2 Shinano 8",
+      "shop": "Demo Shop",
+      "cat_main": "3D服装",
+      "cat_subs": [
+        "示例"
+      ],
+      "avatars": [
+        "Shinano"
+      ],
+      "local_folders": [
+        "demo-2.zip"
+      ],
+      "local_bytes": 24576,
+      "published_at": "2026-01-02",
+      "price_min": 200
+    },
+    {
+      "id": "1000003",
+      "title": "Demo 3 Shinano 8",
+      "shop": "Demo Shop",
+      "cat_main": "3D服装",
+      "cat_subs": [
+        "示例"
+      ],
+      "avatars": [
+        "Shinano"
+      ],
+      "local_folders": [
+        "demo-3.zip"
+      ],
+      "local_bytes": 23552,
+      "published_at": "2026-01-03",
+      "price_min": 300
+    },
+    {
+      "id": "1000004",
+      "title": "Demo 4 Shinano 8",
+      "shop": "Demo Shop",
+      "cat_main": "3D服装",
+      "cat_subs": [
+        "示例"
+      ],
+      "avatars": [
+        "Shinano"
+      ],
+      "local_folders": [
+        "demo-4.zip"
+      ],
+      "local_bytes": 22528,
+      "published_at": "2026-01-04",
+      "price_min": 400
+    },
+    {
+      "id": "1000005",
+      "title": "Demo 5 Shinano 8",
+      "shop": "Demo Shop",
+      "cat_main": "3D服装",
+      "cat_subs": [
+        "示例"
+      ],
+      "avatars": [
+        "Shinano"
+      ],
+      "local_folders": [
+        "demo-5.zip"
+      ],
+      "local_bytes": 21504,
+      "published_at": "2026-01-05",
+      "price_min": 500
+    },
+    {
+      "id": "1000006",
+      "title": "Demo 6 Shinano 8",
+      "shop": "Demo Shop",
+      "cat_main": "3D服装",
+      "cat_subs": [
+        "示例"
+      ],
+      "avatars": [
+        "Shinano"
+      ],
+      "local_folders": [
+        "demo-6.zip"
+      ],
+      "local_bytes": 20480,
+      "published_at": "2026-01-06",
+      "price_min": 600
+    },
+    {
+      "id": "1000007",
+      "title": "Demo 7 Shinano 8",
+      "shop": "Demo Shop",
+      "cat_main": "3D服装",
+      "cat_subs": [
+        "示例"
+      ],
+      "avatars": [
+        "Shinano"
+      ],
+      "local_folders": [
+        "demo-7.zip"
+      ],
+      "local_bytes": 19456,
+      "published_at": "2026-01-07",
+      "price_min": 700
+    },
+    {
+      "id": "1000008",
+      "title": "Demo 8 Shinano 8",
+      "shop": "Demo Shop",
+      "cat_main": "3D服装",
+      "cat_subs": [
+        "示例"
+      ],
+      "avatars": [
+        "Shinano"
+      ],
+      "local_folders": [
+        "demo-8.zip"
+      ],
+      "local_bytes": 18432,
+      "published_at": "2026-01-08",
+      "price_min": 800
+    },
+    {
+      "id": "1000009",
+      "title": "Demo 9 Shinano 8",
+      "shop": "Demo Shop",
+      "cat_main": "3D服装",
+      "cat_subs": [
+        "示例"
+      ],
+      "avatars": [
+        "Shinano"
+      ],
+      "local_folders": [
+        "demo-9.zip"
+      ],
+      "local_bytes": 17408,
+      "published_at": "2026-01-09",
+      "price_min": 900
+    },
+    {
+      "id": "1000010",
+      "title": "Demo 10 Shinano 8",
+      "shop": "Demo Shop",
+      "cat_main": "3D服装",
+      "cat_subs": [
+        "示例"
+      ],
+      "avatars": [
+        "Shinano"
+      ],
+      "local_folders": [
+        "demo-10.zip"
+      ],
+      "local_bytes": 16384,
+      "published_at": "2026-01-10",
+      "price_min": 1000
+    },
+    {
+      "id": "1000011",
+      "title": "Demo 11 Shinano 8",
+      "shop": "Demo Shop",
+      "cat_main": "3D服装",
+      "cat_subs": [
+        "示例"
+      ],
+      "avatars": [
+        "Shinano"
+      ],
+      "local_folders": [
+        "demo-11.zip"
+      ],
+      "local_bytes": 15360,
+      "published_at": "2026-01-11",
+      "price_min": 1100
+    },
+    {
+      "id": "1000012",
+      "title": "Demo 12 Shinano 8",
+      "shop": "Demo Shop",
+      "cat_main": "3D服装",
+      "cat_subs": [
+        "示例"
+      ],
+      "avatars": [
+        "Shinano"
+      ],
+      "local_folders": [
+        "demo-12.zip"
+      ],
+      "local_bytes": 14336,
+      "published_at": "2026-01-12",
+      "price_min": 1200
+    },
+    {
+      "id": "1000013",
+      "title": "Demo 13 Shinano 8",
+      "shop": "Demo Shop",
+      "cat_main": "3D服装",
+      "cat_subs": [
+        "示例"
+      ],
+      "avatars": [
+        "Shinano"
+      ],
+      "local_folders": [
+        "demo-13.zip"
+      ],
+      "local_bytes": 13312,
+      "published_at": "2026-01-13",
+      "price_min": 1300
+    },
+    {
+      "id": "1000014",
+      "title": "Demo 14 Shinano 8",
+      "shop": "Demo Shop",
+      "cat_main": "3D服装",
+      "cat_subs": [
+        "示例"
+      ],
+      "avatars": [
+        "Shinano"
+      ],
+      "local_folders": [
+        "demo-14.zip"
+      ],
+      "local_bytes": 12288,
+      "published_at": "2026-01-14",
+      "price_min": 1400
+    },
+    {
+      "id": "1000015",
+      "title": "Demo 15 Shinano 8",
+      "shop": "Demo Shop",
+      "cat_main": "3D服装",
+      "cat_subs": [
+        "示例"
+      ],
+      "avatars": [
+        "Shinano"
+      ],
+      "local_folders": [
+        "demo-15.zip"
+      ],
+      "local_bytes": 11264,
+      "published_at": "2026-01-15",
+      "price_min": 1500
+    },
+    {
+      "id": "1000016",
+      "title": "Demo 16 Shinano 8",
+      "shop": "Demo Shop",
+      "cat_main": "3D服装",
+      "cat_subs": [
+        "示例"
+      ],
+      "avatars": [
+        "Shinano"
+      ],
+      "local_folders": [
+        "demo-16.zip"
+      ],
+      "local_bytes": 10240,
+      "published_at": "2026-01-16",
+      "price_min": 1600
+    },
+    {
+      "id": "1000017",
+      "title": "Demo 17 Shinano 8",
+      "shop": "Demo Shop",
+      "cat_main": "3D服装",
+      "cat_subs": [
+        "示例"
+      ],
+      "avatars": [
+        "Shinano"
+      ],
+      "local_folders": [
+        "demo-17.zip"
+      ],
+      "local_bytes": 9216,
+      "published_at": "2026-01-17",
+      "price_min": 1700
+    },
+    {
+      "id": "1000018",
+      "title": "Demo 18 Shinano 8",
+      "shop": "Demo Shop",
+      "cat_main": "3D服装",
+      "cat_subs": [
+        "示例"
+      ],
+      "avatars": [
+        "Shinano"
+      ],
+      "local_folders": [
+        "demo-18.zip"
+      ],
+      "local_bytes": 8192,
+      "published_at": "2026-01-18",
+      "price_min": 1800
+    },
+    {
+      "id": "1000019",
+      "title": "Demo 19 Shinano 8",
+      "shop": "Demo Shop",
+      "cat_main": "3D服装",
+      "cat_subs": [
+        "示例"
+      ],
+      "avatars": [
+        "Shinano"
+      ],
+      "local_folders": [
+        "demo-19.zip"
+      ],
+      "local_bytes": 7168,
+      "published_at": "2026-01-19",
+      "price_min": 1900
+    },
+    {
+      "id": "1000020",
+      "title": "Demo 20 Shinano 8",
+      "shop": "Demo Shop",
+      "cat_main": "3D服装",
+      "cat_subs": [
+        "示例"
+      ],
+      "avatars": [
+        "Shinano"
+      ],
+      "local_folders": [
+        "demo-20.zip"
+      ],
+      "local_bytes": 6144,
+      "published_at": "2026-01-20",
+      "price_min": 2000
+    },
+    {
+      "id": "1000021",
+      "title": "Demo 21 Shinano 8",
+      "shop": "Demo Shop",
+      "cat_main": "3D服装",
+      "cat_subs": [
+        "示例"
+      ],
+      "avatars": [
+        "Shinano"
+      ],
+      "local_folders": [
+        "demo-21.zip"
+      ],
+      "local_bytes": 5120,
+      "published_at": "2026-01-21",
+      "price_min": 2100
+    },
+    {
+      "id": "1000022",
+      "title": "Demo 22 Shinano 8",
+      "shop": "Demo Shop",
+      "cat_main": "3D服装",
+      "cat_subs": [
+        "示例"
+      ],
+      "avatars": [
+        "Shinano"
+      ],
+      "local_folders": [
+        "demo-22.zip"
+      ],
+      "local_bytes": 4096,
+      "published_at": "2026-01-22",
+      "price_min": 2200
+    },
+    {
+      "id": "1000023",
+      "title": "Demo 23 Shinano 8",
+      "shop": "Demo Shop",
+      "cat_main": "3D服装",
+      "cat_subs": [
+        "示例"
+      ],
+      "avatars": [
+        "Shinano"
+      ],
+      "local_folders": [
+        "demo-23.zip"
+      ],
+      "local_bytes": 3072,
+      "published_at": "2026-01-23",
+      "price_min": 2300
+    },
+    {
+      "id": "1000024",
+      "title": "Demo 24 Shinano 8",
+      "shop": "Demo Shop",
+      "cat_main": "3D服装",
+      "cat_subs": [
+        "示例"
+      ],
+      "avatars": [
+        "Shinano"
+      ],
+      "local_folders": [
+        "demo-24.zip"
+      ],
+      "local_bytes": 2048,
+      "published_at": "2026-01-24",
+      "price_min": 2400
+    },
+    {
+      "id": "1000025",
+      "title": "Demo 25 Shinano 8",
+      "shop": "Demo Shop",
+      "cat_main": "3D服装",
+      "cat_subs": [
+        "示例"
+      ],
+      "avatars": [
+        "Shinano"
+      ],
+      "local_folders": [
+        "demo-25.zip"
+      ],
+      "local_bytes": 1024,
+      "published_at": "2026-01-25",
+      "price_min": 2500
+    }
+  ],
+  "items": []
+}

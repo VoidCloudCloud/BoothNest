@@ -1,0 +1,52 @@
+name: 问题反馈 / Bug report
+description: 报告可以复现的运行、识别或数据问题
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈。截图、日志和导出表可能包含个人路径或商品信息，请先检查。
+        安全漏洞请使用仓库 Security 页的私密报告功能。
+  - type: input
+    id: version
+    attributes:
+      label: BoothNest 版本
+      placeholder: 例如 1.1.0 Beta 3
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: Windows 与浏览器版本
+      placeholder: 例如 Windows 11 24H2、Microsoft Edge 版本
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: 运行方式
+      options:
+        - 解压 Windows 发布包
+        - 使用 install.cmd 安装
+        - Python 源码运行
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: 复现步骤
+      description: 请说明离线模式、扫描目录类型（本机 / 移动盘 / NAS）与操作步骤。
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 预期结果与实际结果
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: 错误提示或补充截图
+      description: 可选；不要上传商品素材、真实库存、会话凭证或含个人信息的原始日志。

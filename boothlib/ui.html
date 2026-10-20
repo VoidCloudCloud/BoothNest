@@ -1,0 +1,1494 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="booth-session" content="__BOOTH_SESSION_TOKEN__">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BoothNest</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🗂</text></svg>">
+<style>
+  :root{
+    --bg:#0f1115; --panel:#161a21; --panel2:#1c222b; --line:#262e3a;
+    --fg:#e6e9ef; --fg2:#9aa5b5; --fg3:#6b7686;
+    --accent:#5b9dff; --accent2:#7c5cff; --ok:#3ecf8e; --warn:#ffb020; --bad:#ff6b6b;
+    --r:10px;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--fg);overflow:hidden;
+    font:14px/1.55 "Segoe UI","Hiragino Sans","Yu Gothic UI","Microsoft YaHei",system-ui,sans-serif}
+  a{color:var(--accent);text-decoration:none;cursor:pointer}
+  a:hover{text-decoration:underline}
+  .app{display:flex;flex-direction:column;height:100vh}
+
+  header{display:flex;align-items:center;gap:12px;padding:10px 16px;
+    border-bottom:1px solid var(--line);background:linear-gradient(180deg,#171c25,#12161d);
+    -webkit-app-region:drag;flex:0 0 auto}
+  header .title{font-size:15px;font-weight:600;letter-spacing:.3px;white-space:nowrap}
+  header .spacer{flex:1}
+  .pathbox{display:flex;align-items:center;gap:6px;background:#0d1016;
+    border:1px solid var(--line);border-radius:8px;padding:3px 4px 3px 10px;
+    max-width:52vw;-webkit-app-region:no-drag}
+  .pathbox input{background:transparent;border:0;color:var(--fg);outline:none;
+    font-size:12.5px;width:34vw;font-family:ui-monospace,Consolas,monospace}
+  button{background:var(--panel2);border:1px solid var(--line);color:var(--fg);
+    border-radius:7px;padding:7px 13px;font-size:13px;cursor:pointer;white-space:nowrap;
+    -webkit-app-region:no-drag}
+  button:hover{border-color:var(--accent)}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#06101f;font-weight:600}
+  button.primary:hover{filter:brightness(1.1)}
+  button.ghost{background:transparent}
+  button.sm{padding:4px 9px;font-size:12px}
+
+  .tabs{display:flex;gap:4px;padding:8px 16px 0;flex:0 0 auto;flex-wrap:wrap}
+  .tab{padding:7px 14px;border-radius:8px 8px 0 0;border:1px solid transparent;
+    color:var(--fg2);cursor:pointer;font-size:13px}
+  .tab:hover{color:var(--fg)}
+  .tab.on{background:var(--panel);border-color:var(--line);border-bottom-color:var(--panel);
+    color:var(--fg);font-weight:600}
+
+  .body{flex:1;overflow:auto;padding:0 16px 16px}
+  .page{background:var(--panel);border:1px solid var(--line);border-radius:0 var(--r) var(--r) var(--r);
+    padding:14px 16px;min-height:200px}
+  .hidden{display:none !important}
+
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:10px;margin:4px 0 14px}
+  .card{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:12px 14px}
+  .card .k{color:var(--fg3);font-size:11px;text-transform:uppercase;letter-spacing:.6px}
+  .card .v{font-size:20px;font-weight:600;margin-top:4px;font-variant-numeric:tabular-nums}
+  .card .x{color:var(--fg3);font-size:11px;margin-top:2px}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:1080px){.grid2{grid-template-columns:1fr}}
+  .sub{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:12px 14px}
+  .sub h3{margin:0 0 10px;font-size:13px;color:var(--fg2);font-weight:600}
+
+  .bars{display:flex;flex-direction:column;gap:6px}
+  .bar{display:grid;grid-template-columns:170px 1fr 96px;gap:9px;align-items:center;font-size:12.5px}
+  .bar .lb{color:var(--fg2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:default}
+  .bar .tr{background:#0d1016;border-radius:5px;height:15px;overflow:hidden}
+  .bar .fl{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:5px}
+  .bar .vl{text-align:right;color:var(--fg2);font-variant-numeric:tabular-nums}
+  .bar.clickable{cursor:pointer}
+  .bar.clickable:hover .lb{color:var(--fg)}
+
+  .toolbar{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin-bottom:10px}
+  input[type=search],input[type=text],select{background:#0d1016;border:1px solid var(--line);
+    color:var(--fg);border-radius:7px;padding:6px 9px;font-size:13px;outline:none}
+  input[type=search]{min-width:240px}
+  input:focus,select:focus{border-color:var(--accent)}
+  .chip{border:1px solid var(--line);background:#0d1016;color:var(--fg2);border-radius:20px;
+    padding:4px 11px;font-size:12.5px;cursor:pointer;user-select:none}
+  .chip:hover{border-color:var(--accent);color:var(--fg)}
+  .chip.on{background:var(--accent);border-color:var(--accent);color:#06101f;font-weight:600}
+
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th,td{padding:6px 8px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--fg3);font-weight:600;font-size:11.5px;position:sticky;top:0;
+    background:var(--panel2);cursor:pointer;white-space:nowrap;z-index:2}
+  th:hover{color:var(--fg)}
+  th.sorted{color:var(--accent)}
+  tbody tr:hover{background:#1b2029}
+  .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .tag{display:inline-block;background:#222a36;border:1px solid var(--line);border-radius:5px;
+    padding:1px 6px;font-size:11px;color:var(--fg2);margin:1px 3px 1px 0}
+  .cw{color:var(--ok)} .cm{color:var(--warn)} .cl{color:var(--bad)}
+  .scroll{max-height:calc(100vh - 300px);overflow:auto;border:1px solid var(--line);border-radius:8px}
+  .path{color:var(--fg3);font-size:11.5px;word-break:break-all;
+    font-family:ui-monospace,Consolas,monospace}
+  .muted{color:var(--fg3)}
+  .th-wrap{width:32px;height:32px;object-fit:cover;border-radius:5px;background:#0d1016}
+  details summary{cursor:pointer;color:var(--fg3);font-size:11.5px;margin-top:4px}
+
+  /* ---------- 视图切换 ---------- */
+  .viewtoggle{display:flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+  .viewtoggle .vt{background:#0d1016;border:0;border-radius:0;color:var(--fg2);
+    padding:6px 11px;font-size:12.5px}
+  .viewtoggle .vt+.vt{border-left:1px solid var(--line)}
+  .viewtoggle .vt.on{background:var(--accent);color:#06101f;font-weight:600}
+
+  /* ---------- 网格视图 ---------- */
+  .gridscroll{max-height:calc(100vh - 260px);overflow:auto;
+    border:1px solid var(--line);border-radius:8px;padding:12px}
+  .cardgrid{display:grid;gap:12px;
+    grid-template-columns:repeat(auto-fill,minmax(var(--cw,220px),1fr))}
+  .pcard{background:var(--panel2);border:1px solid var(--line);border-radius:9px;
+    overflow:hidden;cursor:pointer;display:flex;flex-direction:column;
+    transition:border-color .12s, transform .12s}
+  .pcard:hover{border-color:var(--accent);transform:translateY(-2px)}
+  .pcard .imgwrap{position:relative;width:100%;aspect-ratio:1/1;
+    background:#0d1016;overflow:hidden}
+  .pcard .imgwrap img{width:100%;height:100%;object-fit:cover;display:block}
+  .pcard .imgwrap .ph{width:100%;height:100%;display:flex;align-items:center;
+    justify-content:center;color:var(--fg3);font-size:11px;text-align:center;
+    padding:8px;line-height:1.4}
+  .pcard .imgwrap .spin{position:absolute;inset:0;display:flex;align-items:center;
+    justify-content:center;color:var(--fg3);font-size:11px}
+  .pcard .badge{position:absolute;top:6px;right:6px;background:rgba(12,15,20,.85);
+    border:1px solid var(--line);border-radius:5px;padding:1px 6px;font-size:11px;
+    color:var(--fg2);backdrop-filter:blur(3px)}
+  .pcard .badge.dup{color:#06101f;background:var(--warn);border-color:var(--warn);
+    font-weight:600}
+  .pcard .badge.r18{background:#b3352f;border-color:#b3352f;color:#fff}
+  .pcard .meta{padding:8px 9px 9px;display:flex;flex-direction:column;gap:5px;
+    flex:1}
+  .pcard .nm{font-size:12.5px;line-height:1.45;color:var(--fg);
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+    overflow:hidden;word-break:break-word}
+  /* ★ 必须清掉 .sub 的面板样式：全局 .sub 是给「总览页的分组卡片」用的
+     （带背景+边框+内边距），卡片里这两行元数据复用了同名 class，
+     结果每行都变成一个带边框的小方块 —— 一张卡里套三个框，
+     既难看又抢视觉重点。这里显式复位，靠 .pcard .sub 的更高优先级覆盖。 */
+  .pcard .sub{font-size:11px;color:var(--fg3);display:flex;justify-content:space-between;
+    gap:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    background:none;border:0;border-radius:0;padding:0}
+  .pcard .sub .sh{overflow:hidden;text-overflow:ellipsis}
+  .pcard .avrow{font-size:10.5px;color:var(--fg3);white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis}
+  .pcard .sub .dt{color:var(--fg2)}
+  .gridmore{text-align:center;padding:14px 0 4px}
+
+  /* ---------- 详情弹窗 ---------- */
+  .detail{width:min(1000px,94vw);max-height:88vh;display:flex;flex-direction:column}
+  .detail .dhead{display:flex;gap:14px;padding:16px 18px 10px;align-items:flex-start}
+  .detail .dhead .dt{flex:1;min-width:0}
+  .detail .dhead h3{margin:0 0 6px;font-size:15px;line-height:1.45;
+    word-break:break-word;padding:0;border:0}
+  .detail .dhead .dmeta{font-size:12px;color:var(--fg3);line-height:1.9}
+  .detail .dbody{overflow:auto;padding:0 18px 14px}
+  .detail .shots{display:grid;gap:8px;
+    grid-template-columns:repeat(auto-fill,minmax(150px,1fr));margin:8px 0 14px}
+  .detail .shots img{width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:7px;
+    border:1px solid var(--line);cursor:zoom-in;background:#0d1016}
+  .detail .shots img:hover{border-color:var(--accent)}
+  .detail .desc{white-space:pre-wrap;font-size:12.5px;color:var(--fg2);
+    line-height:1.75;background:#0b0e13;border:1px solid var(--line);
+    border-radius:7px;padding:10px 12px;max-height:260px;overflow:auto}
+  .detail .dsec{margin:14px 0 6px;font-size:12px;color:var(--fg3);
+    text-transform:uppercase;letter-spacing:.5px}
+  .lightbox{position:fixed;inset:0;background:rgba(5,7,10,.94);z-index:90;
+    display:flex;align-items:center;justify-content:center;cursor:zoom-out}
+  .lightbox img{max-width:94vw;max-height:94vh;object-fit:contain}
+
+  /* 进度 / 日志 */
+  .overlay{position:fixed;inset:0;background:rgba(8,10,14,.82);display:flex;
+    align-items:center;justify-content:center;z-index:50;backdrop-filter:blur(3px)}
+  .modal{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    width:min(760px,92vw);max-height:80vh;display:flex;flex-direction:column;overflow:hidden}
+  .modal h3{margin:0;padding:14px 18px;border-bottom:1px solid var(--line);font-size:14px}
+  .modal .mbody{padding:14px 18px;overflow:auto}
+  .pbar{height:8px;background:#0d1016;border-radius:5px;overflow:hidden;margin:6px 0 4px}
+  .pbar > div{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));
+    width:0%;transition:width .25s}
+  .logbox{background:#0b0e13;border:1px solid var(--line);border-radius:7px;padding:10px 12px;
+    font:12px/1.65 ui-monospace,Consolas,monospace;color:var(--fg2);
+    max-height:230px;overflow:auto;white-space:pre-wrap;word-break:break-all;margin-top:10px}
+  .modal .mfoot{padding:12px 18px;border-top:1px solid var(--line);display:flex;gap:8px;
+    justify-content:flex-end}
+  .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);
+    background:var(--panel2);border:1px solid var(--line);border-radius:9px;
+    padding:10px 18px;font-size:13px;z-index:80;box-shadow:0 8px 26px rgba(0,0,0,.5);
+    opacity:0;transition:opacity .25s;pointer-events:none;max-width:78vw}
+  .toast.on{opacity:1}
+  .toast.err{border-color:var(--bad);color:#ffd2d2}
+  .toast.ok{border-color:var(--ok)}
+  .empty{color:var(--fg3);text-align:center;padding:48px 20px;font-size:13.5px;line-height:2}
+  .rootwarn{margin:0 14px 6px;padding:9px 12px;border:1px solid #7a5a1e;border-radius:8px;
+    background:#2a2113;color:#ffd97a;font-size:12.5px;line-height:1.65}
+  .rootwarn .muted{color:#c9b478}
+  .kbd{background:#0d1016;border:1px solid var(--line);border-radius:4px;padding:1px 5px;
+    font-family:ui-monospace,Consolas,monospace;font-size:11.5px}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="title">🗂 BoothNest</div>
+    <div class="pathbox">
+      <span class="muted" style="font-size:12px">扫描</span>
+      <input id="rootInput" spellcheck="false" placeholder="选择 BOOTH 下载目录…">
+      <button class="sm ghost" id="btnPick" title="选择目录">浏览…</button>
+    </div>
+    <div class="spacer"></div>
+    <button id="btnRefresh" class="primary">刷新数据</button>
+    <button id="btnFull" title="忽略缓存，完全重扫（慢）">全量重建</button>
+    <button id="btnExport" title="把当前筛选结果导出为 CSV；未筛选则导出全部">导出结果</button>
+    <button id="btnExportAll" class="ghost" title="导出全部 10 个 CSV 到导出目录">导出全部</button>
+    <button id="btnFolder" class="ghost" title="打开导出目录">📁</button>
+  </header>
+  <!-- 扫描根不可访问时的告警条（由 loadAll 控制显隐） -->
+  <div id="rootWarn" class="rootwarn hidden"></div>
+
+  <div class="tabs">
+    <div class="tab on" data-tab="overview">总览</div>
+    <div class="tab" data-tab="products">商品清单</div>
+    <div class="tab" data-tab="items">识别管理</div>
+    <div class="tab" data-tab="unid">未识别条目</div>
+    <div class="tab" data-tab="dups">重复下载</div>
+    <div class="tab" data-tab="about">设置与说明</div>
+  </div>
+
+  <div class="body">
+    <!-- ================= 总览 ================= -->
+    <div class="page" id="page-overview">
+      <div id="emptyState" class="empty">
+        还没有数据。<br>确认上方「扫描」路径正确后，点击右上角 <b>刷新数据</b> 开始。<br>
+        <span class="muted" style="font-size:12px">首次运行需要联网抓取 BOOTH 商品信息；<br>
+        之后新增下载只需再点一次刷新，已有缓存会自动跳过。</span>
+      </div>
+
+      <div id="overviewBody" class="hidden">
+        <div class="cards" id="kpis"></div>
+
+        <div class="toolbar">
+          <span class="muted" style="font-size:12.5px">统计口径</span>
+          <select id="dimSel"></select>
+          <span class="muted" id="dimNote" style="font-size:11.5px"></span>
+        </div>
+        <div class="grid2">
+          <div class="sub"><h3 id="dimTitle">分布</h3><div class="bars" id="dimBars"></div></div>
+          <div class="sub"><h3>适配角色 TOP 20</h3><div class="bars" id="avBars"></div></div>
+        </div>
+        <div class="grid2" style="margin-top:14px">
+          <div class="sub"><h3>识别情况</h3><div class="bars" id="confBars"></div>
+            <div class="muted" id="howLegend" style="margin-top:8px;font-size:11.5px"></div></div>
+          <div class="sub"><h3>细分标签</h3><div class="bars" id="subBars"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= 商品清单 ================= -->
+    <div class="page hidden" id="page-products">
+      <div class="toolbar">
+        <input type="search" id="q" placeholder="搜索商品名 / 店铺 / 角色 / 本地路径…">
+        <select id="fcat"><option value="">全部分类</option></select>
+        <select id="fshop"><option value="">全部店铺</option></select>
+        <button class="chip" id="onlyDup">只看重复下载</button>
+        <select id="fsort" title="排序方式（网格与表格共用）"></select>
+        <button class="chip" id="fsortDir" title="切换升序 / 降序">↓ 降序</button>
+        <button class="chip" id="reset">重置</button>
+        <div class="spacer" style="flex:1"></div>
+        <div class="viewtoggle" id="viewToggle">
+          <button class="vt on" data-view="grid" title="网格（看图）">▦ 网格</button>
+          <button class="vt" data-view="table" title="表格（看数据）">☰ 表格</button>
+        </div>
+        <select id="gsize" title="卡片显示大小（图片本身固定取 300px 再缩放）">
+          <option value="120">小图</option>
+          <option value="180" selected>中图</option>
+          <option value="260">大图</option>
+        </select>
+        <span class="muted" id="pcount"></span>
+        <span class="muted" id="mtNote" style="font-size:11.5px"></span>
+      </div>
+
+      <!-- 网格视图：卡片带预览图 -->
+      <div id="gridWrap" class="gridscroll">
+        <div class="cardgrid" id="pgrid"></div>
+        <div id="gridMore" class="gridmore hidden">
+          <button class="chip" id="btnMore">加载更多（已显示 <span id="shownN">0</span> / <span id="totalN">0</span>）</button>
+        </div>
+      </div>
+
+      <!-- 表格视图 -->
+      <div class="scroll hidden" id="tableWrap"><table id="ptbl">
+        <thead><tr>
+          <th data-s="mt" class="num">下载 ▾</th><th data-s="b" class="num">占用</th>
+          <th data-s="t">商品名</th>
+          <th data-s="s">店铺</th><th data-s="c">分类</th>
+          <th data-s="pt" class="num">价格</th><th data-s="w" class="num">收藏</th>
+          <th data-s="n" class="num">份数</th><th data-s="pa">上架</th><th>适配角色</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table></div>
+    </div>
+
+    <!-- ================= 识别管理 ================= -->
+    <div class="page hidden" id="page-items">
+      <p class="muted">查看每个下载条目的归属与识别依据。人工修正独立保存，刷新与清空商品缓存后仍保留；不修改原始下载文件。</p>
+      <div class="toolbar">
+        <input type="search" id="iq" placeholder="搜索路径、商品名或 ID…">
+        <select id="istatus"><option value="all">全部条目</option><option value="unidentified">未识别</option>
+          <option value="manual">人工修正</option><option value="ignored">已标记非商品</option></select>
+        <button class="chip" id="itemBatch" disabled>批量修正</button>
+        <button class="chip" id="itemExport">导出当前筛选</button>
+        <span class="muted" id="icount"></span>
+      </div>
+      <div class="scroll"><table id="itbl"><thead><tr>
+        <th><input type="checkbox" id="itemSelectPage" aria-label="选择本页条目"></th>
+        <th>本地条目</th><th>当前商品</th><th>识别依据</th><th class="num">占用</th><th>操作</th>
+      </tr></thead><tbody></tbody></table></div>
+      <div class="toolbar"><button class="chip" id="itemPrev">上一页</button>
+        <span class="muted" id="ipage"></span><button class="chip" id="itemNext">下一页</button></div>
+    </div>
+
+    <!-- ================= 未识别 ================= -->
+    <div class="page hidden" id="page-unid">
+      <div class="muted" style="font-size:12px;margin-bottom:10px">
+        这些条目未能匹配到 BOOTH 商品。多数是软件/工具、或「材质包 / PSD / 说明文件」
+        这类拆分下载的碎片；少数是文件名与商品标题差异过大的冷门商品。
+      </div>
+      <div class="toolbar">
+        <input type="search" id="uq" placeholder="过滤未识别条目…">
+        <button class="chip" id="unidExport">导出为 CSV</button>
+        <span class="muted" id="ucount"></span>
+      </div>
+      <div class="scroll"><table id="utbl">
+        <thead><tr><th data-s="mt" class="num">下载 ▾</th><th data-s="b" class="num">占用</th>
+          <th data-s="f">本地条目</th>
+          <th data-s="n" class="num">文件数</th><th>操作</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+    </div>
+
+    <!-- ================= 重复下载 ================= -->
+    <div class="page hidden" id="page-dups">
+      <div class="muted" id="dupLegend" style="font-size:12px;margin-bottom:10px"></div>
+      <div class="toolbar">
+        <input type="search" id="dq" placeholder="过滤重复项（商品名 / 本地路径）…">
+        <button class="chip" id="dupExport">导出为 CSV</button>
+        <button class="chip" id="checkFiles">校验相同文件内容</button>
+        <button class="chip" id="hashExport" disabled>导出内容核对</button>
+        <span class="muted" id="dcount"></span>
+      </div>
+      <div class="scroll"><table id="dtbl">
+        <thead><tr><th class="num" data-s="waste">待核对占用 ▾</th>
+          <th data-s="title">商品名</th><th class="num" data-s="n">份数</th>
+          <th data-s="mt">下载时间</th>
+          <th>本地路径</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+      <div class="sub" style="margin-top:18px">
+        <h3>相同文件内容核对</h3>
+        <p class="muted">对库存中的普通文件按大小筛选后计算 SHA-256，包括目录里的文件。大文件和网络盘可能较慢，可以取消；不会删除文件。</p>
+        <div id="hashSummary" class="muted">尚未校验文件内容。</div>
+        <div class="toolbar"><input type="search" id="hq" placeholder="筛选核对结果中的路径…"></div>
+        <div id="hashGroups"></div>
+        <button class="chip hidden" id="hashMore">显示更多核对结果</button>
+      </div>
+    </div>
+
+    <!-- ================= 设置与说明 ================= -->
+    <div class="page hidden" id="page-about">
+      <div class="grid2">
+        <div class="sub">
+          <h3>目录</h3>
+          <div id="dirInfo" class="muted" style="font-size:12.5px;line-height:2"></div>
+          <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+            <button class="chip" id="openHome">打开数据目录</button>
+            <button class="chip" id="openExport">打开导出目录</button>
+            <button class="chip" id="clearCache">清空缓存</button>
+            <label><input type="checkbox" id="offlineMode"> 离线模式（仅使用本地缓存）</label>
+          </div>
+        </div>
+        <div class="sub">
+          <h3>识别方式</h3>
+          <ol class="muted" style="font-size:12.5px;line-height:1.95;margin:0;padding-left:18px">
+            <li><b>文件名里的 7 位 BOOTH ID</b> → 直取商品 JSON（最可靠）</li>
+            <li><b>压缩包内容探测</b> → unitypackage 内部 <code>Assets/&lt;店铺&gt;/…</code>
+              路径与 BOOTH 店铺名交叉校验</li>
+            <li><b>名称搜索反查</b> → 独特整串命中 / 标题覆盖率 / 店铺独立佐证 三重判据</li>
+          </ol>
+          <div class="muted" style="font-size:11.5px;margin-top:10px">
+            只读文件名与压缩包目录清单，<b>不解压、不改动任何原始文件</b>。
+          </div>
+        </div>
+      </div>
+      <div class="sub" style="margin-top:14px">
+        <h3>识别方式分布</h3><div class="bars" id="howBars"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 进度遮罩 -->
+<div class="overlay hidden" id="overlay">
+  <div class="modal">
+    <h3 id="ovTitle">正在刷新数据…</h3>
+    <div class="mbody">
+      <div id="phaseLabel" class="muted" style="font-size:12.5px">准备中…</div>
+      <div class="pbar"><div id="pfill"></div></div>
+      <div class="logbox" id="logbox"></div>
+    </div>
+    <div class="mfoot">
+      <button id="btnCancel">取消</button>
+      <button id="btnCloseOv" class="primary hidden">完成</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================= 基础工具 ================= */
+const $ = id => document.getElementById(id);
+const SESSION_TOKEN = document.querySelector('meta[name="booth-session"]').content;
+let storedPrefs = {};
+// The HTTP port changes at startup; keep preferences in the application config.
+const preferences = {
+  getItem: key => storedPrefs[key] ?? null,
+  setItem(key, value){
+    storedPrefs[key] = String(value);
+    return api("set_preferences", {[key]: String(value)});
+  },
+  removeItem(key){ delete storedPrefs[key]; return api("set_preferences", {[key]:null}); }
+};
+const fmtB = b => b>=1024**3 ? (b/1024**3).toFixed(2)+" GB"
+              : b>=1024**2 ? (b/1024**2).toFixed(1)+" MB"
+              : b>=1024 ? (b/1024).toFixed(1)+" KB" : (b||0)+" B";
+const fmtN = n => (n||0).toLocaleString("en-US");
+const esc = s => String(s??"").replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+let toastTimer=null;
+function toast(msg, kind=""){
+  const t=$("toast");
+  t.textContent=msg; t.className="toast on "+kind;
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.className="toast "+kind, 3200);
+}
+
+/* ================= 状态 ================= */
+const S = {
+  rows:[], unid:[], dups:[], items:[], itemSelection:new Set(), itemPage:0, hashReport:null, hashShown:50, summary:null, dim:"category",
+  dims:[],
+  // 排序：网格/表格共用一套（fsort 下拉 + 表头点击都写这里）。
+  // k 必须与商品行字段同名：mt 下载时间 / pa 上架时间 / b 占用 …
+  sort:{k:"mt",asc:false}, usort:{k:"mt",asc:false},
+  dsort:{k:"waste",asc:false},
+  onlyDup:false, busy:false,
+  // 商品清单视图：grid（看图，默认） / table（看数据）
+  // gsize 是**卡片显示宽度**（CSS 缩放），不是图片请求尺寸
+  view:"grid", gsize:180, gridRows:[], gridShown:60,
+};
+
+/* 可选排序字段。值 = 商品行上的字段名，与表头 data-s 一致，
+   这样点表头与选下拉走同一条路径，不会出现「下拉说按下载、
+   实际按占用」这种两套逻辑打架的情况。 */
+const SORT_OPTS = [
+  ["mt",     "下载时间",   "mt"],
+  ["pa",     "上架时间",   "pa"],
+  ["b",      "本地占用",   "b"],
+  ["w",      "收藏数",     "w"],
+  ["pm",     "价格",       "pm"],
+  ["n",      "下载份数",   "n"],
+  ["t",      "商品名",     "t"],
+  ["s",      "店铺名",     "s"],
+];
+
+/* ================= 标签页 ================= */
+document.querySelectorAll(".tab").forEach(t=>{
+  t.onclick=()=>{
+    document.querySelectorAll(".tab").forEach(x=>x.classList.remove("on"));
+    t.classList.add("on");
+    ["overview","products","items","unid","dups","about"].forEach(n=>{
+      $("page-"+n).classList.toggle("hidden", n!==t.dataset.tab);
+    });
+  };
+});
+
+/* ================= 进度 / 日志 ================= */
+window.__log = m=>{
+  const b=$("logbox");
+  const atBottom = b.scrollTop + b.clientHeight >= b.scrollHeight - 30;
+  b.textContent += m + "\n";
+  if(atBottom) b.scrollTop=b.scrollHeight;
+};
+window.__progress = (phase,done,total)=>{
+  $("phaseLabel").textContent = phase.includes("SHA-256")
+    ? `${phase}　${fmtB(done)} / ${fmtB(total)}`
+    : `${phase}　${done}${total?` / ${total}`:""}`;
+  $("pfill").style.width = total? Math.min(100, done/total*100).toFixed(1)+"%" : "0%";
+};
+window.__done = res=>{
+  S.busy=false;
+  $("btnCancel").classList.add("hidden");
+  $("btnCloseOv").classList.remove("hidden");
+  $("pfill").style.width="100%";
+  if(res && res.ok){
+    $("ovTitle").textContent="完成";
+    $("phaseLabel").textContent = res.kind==="duplicates"
+      ? `发现 ${fmtN(res.groups)} 组相同 SHA-256 文件，额外逻辑大小 ${fmtB(res.extra_bytes)}`
+      : `共 ${fmtN(res.totItems)} 个条目 → 识别 ${fmtN(res.totProds)} 件商品`;
+    toast(res.kind==="duplicates"?"文件校验完成":"刷新完成","ok");
+    loadAll();
+  }else if(res && res.cancelled){
+    $("ovTitle").textContent="已取消";
+    $("phaseLabel").textContent="任务被取消，数据未更新。";
+    toast("已取消");
+  }else{
+    $("ovTitle").textContent="出错";
+    $("phaseLabel").textContent=(res&&res.error)||"未知错误";
+    toast("任务失败："+((res&&res.error)||""),"err");
+  }
+};
+
+function showOverlay(title){
+  $("ovTitle").textContent=title;
+  $("phaseLabel").textContent="准备中…";
+  $("pfill").style.width="0%";
+  $("logbox").textContent="";
+  $("btnCancel").classList.remove("hidden");
+  $("btnCloseOv").classList.add("hidden");
+  $("overlay").classList.remove("hidden");
+}
+$("btnCloseOv").onclick=()=>$("overlay").classList.add("hidden");
+$("btnCancel").onclick=async()=>{ await api("cancel"); };
+
+/* ================= API 封装（本地 HTTP 服务） ================= */
+async function api(method, ...args){
+  try{
+    const r = await fetch("/api/"+method, {
+      method:"POST",
+      headers:{"Content-Type":"application/json", "X-BoothNest-Token":SESSION_TOKEN},
+      body: JSON.stringify({args})
+    });
+    return await r.json();
+  }catch(e){
+    toast("与本地服务通信失败："+e, "err");
+    return {ok:false, error:String(e)};
+  }
+}
+
+/* ================= 任务进度轮询 ================= */
+let pollCursor = 0, pollTimer = null;
+function startPolling(){
+  pollCursor = 0;
+  if(pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(async ()=>{
+    const p = await api("poll", pollCursor);
+    if(!p || !p.ok) return;
+    pollCursor = p.cursor;
+    (p.logs||[]).forEach(l=>window.__log(l));
+    window.__progress(p.phase||"", p.done||0, p.total||0);
+    if(p.finished){
+      clearInterval(pollTimer); pollTimer=null;
+      window.__done(p.result||{ok:false});
+    }
+  }, 700);
+}
+async function beginTask(full){
+  const r = await api("refresh", !!full);
+  if(!r.ok){ S.busy=false; $("overlay").classList.add("hidden");
+    toast(r.error||"启动失败","err"); return; }
+  startPolling();
+}
+
+/* ================= 顶部按钮 ================= */
+$("btnRefresh").onclick=async()=>{
+  if(S.busy) return;
+  S.busy=true; showOverlay("正在刷新数据…");
+  await beginTask(false);
+};
+$("btnFull").onclick=async()=>{
+  if(S.busy) return;
+  S.busy=true; showOverlay("正在全量重建（忽略缓存，较慢）…");
+  await beginTask(true);
+};
+/* 导出当前筛选结果 */
+$("btnExport").onclick=async()=>{
+  const {ids, label} = currentSelection();
+  const tab = document.querySelector(".tab.on").dataset.tab;
+  let kind = "products";
+  if(tab==="items"){
+    await exportItems(); return;
+  }
+  if(tab==="unid") kind = "unid";
+  else if(tab==="dups") kind = "dups";
+  if(kind==="products" && !ids.length && label) kind="products";
+  toast("正在导出…");
+  const r = kind==="products"
+    ? await api("export_filtered","products", label?ids:null, label||"全部商品")
+    : await api("export_filtered", kind, selectedAux(kind), label||kind);
+  if(r.ok){
+    toast(`已导出 ${r.count} 个文件：${r.files[0]}`, "ok");
+  } else toast(r.error||"导出失败","err");
+};
+/* 导出全部 10 个 CSV */
+$("btnExportAll").onclick=async()=>{
+  const r=await api("export_excel");
+  if(r.ok) toast(`已导出全部 ${r.count} 个文件到导出目录`,"ok");
+  else toast(r.error||"导出失败","err");
+};
+
+/* 汇总当前界面上的筛选条件 → {ids, label} */
+function selectedAux(kind){
+  const q=normQ($(kind==="unid"?"uq":"dq").value.trim());
+  if(kind==="unid") return S.unid.filter(x=>!q||normQ(x.f||"").includes(q)).map(x=>x.f);
+  return S.dups.filter(d=>!q||normQ((d.title||"")+" "+(d.folders||[]).join(" ")).includes(q)).map(d=>String(d.id));
+}
+function currentSelection(){
+  // 商品清单页：按当前搜索/分类/店铺/只看重复
+  const q=$("q").value.trim(), fc=$("fcat").value, fs=$("fshop").value;
+  let rows=S.rows;
+  if(q||fc||fs||S.onlyDup){
+    rows=S.rows.filter(p=>{
+      if(fc && p.c!==fc) return false;
+      if(fs && p.s!==fs) return false;
+      if(S.onlyDup && p.n<=1) return false;
+      if(!q) return true;
+      return normQ(p.t+" "+p.s+" "+p.c+" "+p.sub.join(" ")+" "+p.av.join(" ")+" "+p.f.join(" "))
+        .includes(normQ(q));
+    });
+  }
+  const parts=[];
+  if(q) parts.push(q);
+  if(fc) parts.push(fc);
+  if(fs) parts.push(fs);
+  if(S.onlyDup) parts.push("重复");
+  const filtered = !!(q||fc||fs||S.onlyDup);
+  return {ids: filtered? rows.map(p=>String(p.id)) : [], label: parts.join("-")};
+}
+$("btnFolder").onclick=()=>api("open_path","");
+$("btnPick").onclick=async()=>{
+  const r=await api("pick_root");
+  if(r.ok){ $("rootInput").value=r.root; toast("已切换扫描目录","ok"); markStale(); }
+  else if(r.error && r.error!=="未选择目录") toast(r.error,"err");
+};
+$("rootInput").addEventListener("change", async e=>{
+  const r=await api("set_root", e.target.value);
+  if(r.ok){ toast("已保存扫描目录","ok"); markStale(); } else toast(r.error,"err");
+});
+function markStale(){
+  $("rootWarn").classList.remove("hidden");
+  $("rootWarn").textContent="扫描目录已更改，列表仍显示上次扫描结果。请刷新数据。";
+  $("emptyState").classList.remove("hidden");
+  $("overviewBody").classList.add("hidden");
+  $("emptyState").innerHTML =
+    '扫描目录已更改。<br>点击右上角 <b>刷新数据</b> 以扫描新目录。';
+}
+
+/* ================= 总览 ================= */
+function bars(elId, rows, {bytes=false, clickable=false}={}){
+  const el=$(elId);
+  if(!rows || !rows.length){ el.innerHTML='<div class="muted" style="font-size:12px">无数据</div>'; return; }
+  const max=Math.max(...rows.map(r=>r[1]),1);
+  el.innerHTML=rows.map(([k,v,b])=>{
+    const pct=(v/max*100).toFixed(1);
+    const right = bytes && b!==undefined ? fmtB(b) : fmtN(v);
+    const cls = clickable? "bar clickable":"bar";
+    return `<div class="${cls}" data-k="${esc(k)}" title="${esc(k)}">
+      <div class="lb">${esc(k)}</div>
+      <div class="tr"><div class="fl" style="width:${pct}%"></div></div>
+      <div class="vl">${right}</div></div>`;
+  }).join("");
+}
+
+async function renderOverview(){
+  const s=S.summary;
+  $("kpis").innerHTML = [
+    ["本地条目", fmtN(s.totItems), `识别 ${fmtN(s.identified)} · 未识别 ${fmtN(s.unidentified)} · 非商品 ${fmtN(s.ignored||0)}`],
+    ["识别出的商品", fmtN(s.totProds), `识别率 ${(s.identified/s.totItems*100).toFixed(1)}%`],
+    ["本地总占用", fmtB(s.totBytes), `${fmtN(s.totFiles)} 个文件`],
+    ["多份下载待核对", fmtB(s.wasteTotal), `${s.dups.length} 件商品存在多份下载，未校验内容`],
+    ["商品标价合计", "¥"+fmtN(s.priceSum), "按各商品最低档计算"],
+    ["重复下载条目", fmtN(s.dups.reduce((a,b)=>a+b.n,0)), `共 ${s.dups.length} 组`],
+  ].map(([k,v,x])=>`<div class="card"><div class="k">${k}</div>
+      <div class="v">${v}</div><div class="x">${x}</div></div>`).join("");
+
+  const g=await api("get_groups", S.dim);
+  if(g.ok){
+    S.dims=g.dimensions||S.dims;
+    const sel=$("dimSel");
+    if(!sel.options.length){
+      sel.innerHTML=S.dims.map(([v,label])=>`<option value="${v}">${label}</option>`).join("");
+      sel.value=S.dim;
+      sel.onchange=()=>{ S.dim=sel.value; renderOverview(); };
+    }
+    $("dimTitle").textContent = (S.dims.find(d=>d[0]===S.dim)||[,"分布"])[1];
+    const rows=g.rows.map(r=>[r.key, r.count, r.bytes]);
+    if(S.dim==="none"){ rows[0] && (rows[0][0]="全部商品"); }
+    bars("dimBars", rows, {bytes:true, clickable:true});
+    $("dimNote").textContent = S.dim==="avatar"
+      ? "注：多角色商品会在每个角色下各计一次，故合计大于商品总数"
+      : (S.dim==="none" ? "" : `共 ${g.rows.length} 个分组，按本地占用排序`);
+    document.querySelectorAll("#dimBars .bar").forEach(b=>{
+      b.onclick=()=>{
+        const k=b.dataset.k;
+        document.querySelector('.tab[data-tab="products"]').click();
+        if(S.dim==="avatar"){ $("q").value=k.split(" ")[0]; }
+        else if(S.dim==="shop"){ $("fshop").value=k; }
+        else if(S.dim==="category"){ $("fcat").value=k; }
+        else { $("q").value=k; }
+        renderProducts();
+      };
+    });
+  }
+
+  const av = S.summary.avatars || [];
+  bars("avBars", av.map(a=>[a.key ?? a[0], a.count ?? a[1]]));
+  bars("confBars", Object.entries(s.conf).sort((a,b)=>b[1]-a[1]));
+  bars("howBars", Object.entries(s.how).sort((a,b)=>b[1]-a[1]));
+  bars("subBars", (S.summary.subs||[]).map(x=>[x[0],x[1]]));
+  $("howLegend").innerHTML = Object.entries(s.how)
+    .map(([k,v])=>`· ${esc(k)}：<b>${v}</b>`).join("<br>");
+}
+
+/* ================= 商品清单 ================= */
+const PAGE = 60;          // 网格每次渲染多少个（懒加载，避免一次插几百张图）
+
+/* 全角 → 半角，用于搜索比对。
+   ★ 为什么需要：BOOTH 商品标题里混着全角字符，实测本机 421 件商品中有
+     21 件（5.0%）标题含全角。典型：`【８アバター対応】Blanche`、
+     `【２１アバター対応】nightneko`。用户按半角敲 "18" 或 "21" 搜不到，
+     反过来敲全角也搜不到 —— 而人眼完全看不出这两串有什么区别。
+   只折叠 ASCII 可打印区（！-～），不动假名与汉字。 */
+const FW_MAP = (()=>{
+  const m = {};
+  for(let c=0xFF01; c<=0xFF5E; c++) m[String.fromCharCode(c)] = String.fromCharCode(c-0xFEE0);
+  m["\u3000"] = " ";      // 全角空格
+  return m;
+})();
+function foldWidth(s){
+  return String(s==null?"":s).replace(/[\uFF01-\uFF5E\u3000]/g, ch=>FW_MAP[ch]||ch);
+}
+/* 搜索用的归一化：折叠全角 + 小写。
+   大小写与全角/半角都收敛到同一形态，避免"看得见却搜不到"。 */
+function normQ(s){ return foldWidth(s).toLowerCase(); }
+
+/* epoch 秒 → 「YYYY-MM-DD」，空的给 "—"。
+   为什么用 UTC 之外的手工拼：本地时区才是用户看到的文件时间（东八区）。
+   getFullYear 这类走的是本地时区，正是我们要的。 */
+function fmtDay(ts){
+  const n = Number(ts)||0;
+  if(!n) return "—";
+  const d = new Date(n*1000);
+  const p = x => String(x).padStart(2,"0");
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
+}
+
+/* 排序比较器：一个函数给商品/未识别/重复三张表共用。
+   ★ 为什么不直接 `(a[k]||0)-(b[k]||0)`：mt 是 epoch 秒（数值）、pa 是
+     "YYYY-MM-DD" 字符串，混合类型比大小会得到 NaN 而**静默不排序**。
+     这里按值的类型分流：数字比数值、字符串走 localeCompare。
+   ★ 中文/hébrew 商品名要走 localeCompare，否则按 UTF-16 码位排，
+     纯中文名会散成一堆看不出顺序的东西。 */
+function cmpBy(k, asc){
+  const dir = asc ? 1 : -1;
+  // ★ 注意 `a && b ?? c` 是**语法错误**（?? 不能与 && 直接混用，必须加括号）。
+  //   写成两行就是为了避开这个坑 —— 它会让整个 <script> 编译失败、界面全白。
+  const idOf = o => (o ? String(o.id ?? o.f ?? o.folder ?? o.title ?? "") : "");
+  return (a,b)=>{
+    let x = a[k], y = b[k];
+    // 空值永远沉底（不论升降序），否则升序时"没有上架时间"的会霸屏；
+    // 只有一边为空时直接分出胜负，两边都空才落到唯一键兜底。
+    const ex = (x===undefined || x===null || x===""),
+          ey = (y===undefined || y===null || y==="");
+    if(ex !== ey) return ex ? 1 : -1;
+    if(!ex){
+      let c;
+      if(typeof x==="number" && typeof y==="number") c = x - y;
+      else c = String(x).localeCompare(String(y), "zh-Hans-CN", {numeric:true});
+      if(c) return c*dir;
+    }
+    // 值相同（或两边都空）时按唯一键兜底，保证**全序**：
+    // 否则同一时间的几十件商品顺序取决于输入顺序，点两次「升序/降序」
+    // 看到的排列对不上，会被当成排序坏了。兜底键不吃 dir，
+    // 这样升序恰好是降序的反转。
+    return idOf(a).localeCompare(idOf(b), "en", {numeric:true});
+  };
+}
+
+function filteredRows(){
+  const q=normQ($("q").value.trim());
+  const fc=$("fcat").value, fs=$("fshop").value;
+  let rows=S.rows.filter(p=>{
+    if(fc && p.c!==fc) return false;
+    if(fs && p.s!==fs) return false;
+    if(S.onlyDup && p.n<=1) return false;
+    if(!q) return true;
+    return normQ(p.t+" "+p.s+" "+p.c+" "+p.sub.join(" ")+" "+p.av.join(" ")+" "+p.f.join(" "))
+      .includes(q);
+  });
+  rows.sort(cmpBy(S.sort.k, S.sort.asc));
+  return rows;
+}
+
+function renderProducts(){
+  // 每次筛选变化都从第一页开始，否则会出现「筛出 345 件却仍显示 60 张」的错觉
+  const rows = filteredRows();
+  S.gridRows = rows;
+  S.gridShown = Math.min(PAGE, rows.length);
+  $("pcount").textContent=`${rows.length} / ${S.rows.length} 件 · 按${sortLabel(S.sort.k)}${S.sort.asc?"升序":"降序"}`;
+  if(S.view==="table") renderTable(rows);
+  else drawGrid();
+}
+
+/* ---------- 表格视图 ---------- */
+function renderTable(rows){
+  document.querySelector("#ptbl tbody").innerHTML = rows.map(p=>{
+    const thumb = p.th ? `<img class="th-wrap" loading="lazy"
+        src="${esc(thumbUrl(p.th))}" alt="">` : "";
+    const title = p.u ? `<a data-url="${esc(p.u)}">${esc(p.t)}</a>` : esc(p.t);
+    const sub = p.sub.length ? `<div>${p.sub.map(s=>`<span class="tag">${esc(s)}</span>`).join("")}</div>` : "";
+    const av = p.av.slice(0,4).map(s=>`<span class="tag">${esc(s)}</span>`).join("")
+      + (p.av.length>4?`<span class="tag">+${p.av.length-4}</span>`:"");
+    const paths = p.f.map(f=>`<div class="path" data-folder="${esc(f)}"
+        style="cursor:pointer" title="点击在资源管理器打开">${esc(f)}</div>`).join("");
+    return `<tr>
+      <td class="num" title="${esc(fmtDay(p.mt))}">${esc(fmtDay(p.mt))}</td>
+      <td class="num">${fmtB(p.b)}</td>
+      <td><div style="display:flex;gap:8px"><div>${thumb}</div><div>${title}${sub}
+        <details><summary>本地路径 (${p.f.length})</summary>${paths}</details></div></div></td>
+      <td>${esc(p.s)}</td><td>${esc(p.c)}</td>
+      <td class="num">${esc(p.pt)}</td>
+      <td class="num">${p.w?fmtN(p.w):""}</td>
+      <td class="num">${p.n>1?`<b class="cm">${p.n}</b>`:p.n}</td>
+      <td class="muted">${esc(p.pa)}</td><td>${av}</td></tr>`;
+  }).join("") || `<tr><td colspan="10" class="muted" style="padding:20px">没有匹配的商品</td></tr>`;
+
+  document.querySelectorAll("#ptbl a[data-url]").forEach(a=>{
+    a.onclick=()=>api("open_url", a.dataset.url);
+  });
+  document.querySelectorAll("#ptbl .path[data-folder]").forEach(d=>{
+    d.onclick=()=>api("reveal_item", d.dataset.folder);
+  });
+}
+
+/* ---------- 网格视图 ---------- */
+function thumbUrl(orig){
+  // 表格里用的是 72px 缩略图，网格要看清所以换 300px。
+  // ⚠ 只能取 72 或 300 —— CDN 只接受这两档，中间尺寸一律 403
+  //   （72/100/150/160/180/200/220/240/260/280/300/320/400/500/600 逐个试过）。
+  //   所以"小图/中图/大图"是**显示尺寸**，靠 CSS 缩放，不改请求地址。
+  const m = thumbUrl._re || (thumbUrl._re =
+    /^(https:\/\/booth\.pximg\.net)(?:\/c\/[^/]+)?(\/.+)$/);
+  if(!orig) return "";
+  const g = orig.match(m);
+  if(!g) return orig;
+  return `${g[1]}/c/300x300_a2_g5${g[2]}`;
+}
+
+function renderGrid(rows){
+  S.gridRows = rows;
+  S.gridShown = Math.min(PAGE, rows.length);
+  drawGrid();
+}
+
+function drawGrid(){
+  const rows = S.gridRows || [];
+  const shown = Math.min(S.gridShown, rows.length);
+  const grid = $("pgrid");
+  // --cw 只影响卡片宽度（显示尺寸），不影响图片请求
+  grid.style.setProperty("--cw", (S.gsize+80)+"px");
+  grid.innerHTML = rows.slice(0, shown).map(p=>{
+    const badges = [];
+    if(p.n>1) badges.push(`<span class="badge dup">×${p.n}</span>`);
+    if(p.adult) badges.push(`<span class="badge r18">R18</span>`);
+    const av = p.av.length
+      ? p.av.slice(0,3).join(" · ") + (p.av.length>3?` +${p.av.length-3}`:"")
+      : "";
+    // 先放占位，图片交给 IntersectionObserver 懒加载
+    return `<div class="pcard" data-id="${esc(p.id)}">
+      <div class="imgwrap">
+        ${badges.join("")}
+        <div class="ph" data-src="${esc(p.th?thumbUrl(p.th):"")}">暂无预览图</div>
+      </div>
+      <div class="meta">
+        <div class="nm" title="${esc(p.t)}">${esc(p.t)}</div>
+        <div class="sub"><span class="sh" title="${esc(p.s)}">${esc(p.s||"—")}</span>
+          <span>${fmtB(p.b)}</span></div>
+        <div class="sub"><span>${esc(p.c)}</span>
+          <span>${p.w?fmtN(p.w)+"♡":""}</span></div>
+        <div class="sub"><span class="dt" title="本地文件时间（最新一份）">⤓ ${esc(fmtDay(p.mt))}</span>
+          <span title="上架时间">${esc(p.pa)}</span></div>
+        ${av?`<div class="avrow" title="${esc(p.av.join(" / "))}">${esc(av)}</div>`:""}
+      </div></div>`;
+  }).join("") || `<div class="muted" style="padding:24px;grid-column:1/-1">
+      没有匹配的商品</div>`;
+
+  // 懒加载
+  observeImages(grid);
+
+  const more = $("gridMore");
+  if(rows.length > shown){
+    more.classList.remove("hidden");
+    $("shownN").textContent = shown;
+    $("totalN").textContent = rows.length;
+  } else {
+    more.classList.add("hidden");
+  }
+}
+
+/* 图片懒加载：进入视口才去本地服务取，避免一次拉几百张 */
+let io = null;
+function observeImages(root){
+  if(io) io.disconnect();
+  io = new IntersectionObserver(entries=>{
+    entries.forEach(en=>{
+      if(!en.isIntersecting) return;
+      const ph = en.target;
+      io.unobserve(ph);
+      loadThumb(ph);
+    });
+  }, {root: document.querySelector(".gridscroll"), rootMargin:"200px"});
+  root.querySelectorAll(".ph[data-src]").forEach(el=>{
+    if(!el.dataset.src) return;
+    io.observe(el);
+  });
+}
+
+async function loadThumb(ph){
+  const src = ph.dataset.src;
+  if(!src) return;
+  if(ph.dataset.loading) return;
+  ph.dataset.loading = "1";
+  ph.textContent = "加载中…";
+  const r = await api("get_image", src);
+  if(r && r.ok && r.data){
+    const img = document.createElement("img");
+    img.src = r.data;
+    img.alt = "";
+    img.loading = "lazy";
+    ph.replaceWith(img);
+  } else {
+    ph.textContent = "取图失败";
+    ph.style.color = "var(--fg3)";
+  }
+}
+
+function showView(v){
+  S.view = v;
+  document.querySelectorAll("#viewToggle .vt").forEach(b=>
+    b.classList.toggle("on", b.dataset.view===v));
+  $("gridWrap").classList.toggle("hidden", v!=="grid");
+  $("tableWrap").classList.toggle("hidden", v!=="table");
+  $("gsize").style.display = v==="grid" ? "" : "none";
+  S.view = v;
+  try{ preferences.setItem("bs_view", v); }catch(e){}
+  renderProducts();
+}
+
+/* ---------- 商品详情（点卡片/名字打开） ---------- */
+async function openDetail(id){
+  const r = await api("get_product_detail", String(id));
+  if(!r.ok){ toast(r.error||"打开失败","err"); return; }
+  const d = r.detail;
+  const shots = d.images.map((im,i)=>
+    `<img data-full="${esc(im.full)}" data-i="${i}"
+       src="" data-src="${esc(im.thumb)}" alt="">`).join("");
+  const tags = d.tags.slice(0,40).map(t=>`<span class="tag">${esc(t)}</span>`).join("");
+  const avs = d.avatars.map(t=>`<span class="tag">${esc(t)}</span>`).join("");
+  const folders = d.local_folders.map(f=>
+    `<div style="display:flex;gap:8px;align-items:center;margin:6px 0"><div class="path" data-folder="${esc(f)}" style="cursor:pointer;flex:1"
+      title="点击在资源管理器打开">${esc(f)}</div><button class="chip sm" data-edit-folder="${esc(f)}">修正归属</button></div>`).join("");
+
+  const ov = document.createElement("div");
+  ov.className = "overlay";
+  ov.innerHTML = `<div class="modal detail">
+    <div class="dhead">
+      <div class="dt">
+        <h3>${esc(d.title||"")}</h3>
+        <div class="dmeta">
+          ${d.shop?`店铺：<a data-shop="${esc(d.shop_url||"")}">${esc(d.shop)}</a>　`:""}
+          价格：${esc(d.price||"—")}　收藏：${d.wish?fmtN(d.wish):"—"}　
+          上架：${esc(d.published||"—")}<br>
+          分类：${esc(d.category||"—")}　本地占用：${fmtB(d.local_bytes)}　
+          ${d.url?`<a data-url="${esc(d.url)}">在 BOOTH 打开 ↗</a>`:""}
+        </div>
+      </div>
+      <button class="chip" data-close>关闭</button>
+    </div>
+    <div class="dbody">
+      <div class="dsec">商品图（${d.images.length}）· 点击放大</div>
+      <div class="shots">${shots||'<div class="muted">无图</div>'}</div>
+      ${avs?`<div class="dsec">适配角色</div><div>${avs}</div>`:""}
+      ${tags?`<div class="dsec">标签</div><div>${tags}</div>`:""}
+      ${d.description?`<div class="dsec">商品说明</div>
+        <div class="desc">${esc(d.description)}</div>`:""}
+      <div class="dsec">本地路径（${d.local_folders.length}）</div>
+      ${folders||'<div class="muted">—</div>'}
+    </div></div>`;
+  document.body.appendChild(ov);
+
+  ov.addEventListener("click", async e=>{
+    if(e.target===ov || e.target.hasAttribute("data-close")){
+      ov.remove(); return;
+    }
+    const a = e.target.closest("a[data-url]");
+    if(a){ api("open_url", a.dataset.url); return; }
+    const s = e.target.closest("a[data-shop]");
+    if(s && s.dataset.shop){ api("open_url", s.dataset.shop); return; }
+    const edit = e.target.closest("[data-edit-folder]");
+    if(edit){ ov.remove(); editItems([edit.dataset.editFolder]); return; }
+    const f = e.target.closest(".path[data-folder]");
+    if(f){ api("reveal_item", f.dataset.folder); return; }
+    const img = e.target.closest(".shots img");
+    if(img && img.dataset.full) openLightbox(img.dataset.full);
+  });
+
+  // 弹窗里的图也懒加载（详情可能有 30 张）
+  const dbody = ov.querySelector(".dbody");
+  const dio = new IntersectionObserver(ents=>{
+    ents.forEach(async en=>{
+      if(!en.isIntersecting) return;
+      const el = en.target; dio.unobserve(el);
+      const r2 = await api("get_image", el.dataset.src);
+      if(r2 && r2.ok && r2.data) el.src = r2.data;
+    });
+  }, {root: dbody, rootMargin:"300px"});
+  ov.querySelectorAll(".shots img[data-src]").forEach(el=> dio.observe(el));
+}
+
+function openLightbox(url){
+  const lb = document.createElement("div");
+  lb.className = "lightbox";
+  lb.innerHTML = `<div class="muted" style="position:absolute">加载原图中…</div>`;
+  lb.onclick = ()=> lb.remove();
+  document.body.appendChild(lb);
+  api("get_image", url).then(r=>{
+    if(r && r.ok && r.data){
+      lb.innerHTML = "";
+      const im = document.createElement("img");
+      im.src = r.data;
+      lb.appendChild(im);
+    } else {
+      lb.innerHTML = `<div class="muted">原图加载失败</div>`;
+    }
+  });
+}
+
+/* ---------- 排序控件：下拉 + 方向 + 表头点击，三者同一状态 ---------- */
+function sortFields(){ return SORT_OPTS; }
+function sortLabel(k){
+  const o = SORT_OPTS.find(o=>o[0]===k);
+  return o ? o[1] : k;
+}
+
+/* 让表头三角与 S.sort 保持一致。
+   ★ 必须和下拉同步：否则点了表头之后，下拉还显示旧字段，
+     用户会以为排序没生效（实测这种"两套控件各说各话"最容易误判）。 */
+function syncSortUI(){
+  const sel=$("fsort"), dirBtn=$("fsortDir");
+  if(sel && sel.value!==S.sort.k) sel.value=S.sort.k;
+  if(dirBtn){
+    dirBtn.textContent = S.sort.asc ? "↑ 升序" : "↓ 降序";
+    dirBtn.classList.toggle("on", S.sort.asc);
+  }
+  document.querySelectorAll("#ptbl th[data-s]").forEach(th=>{
+    const on = th.dataset.s===S.sort.k;
+    th.classList.toggle("sorted", on);
+    // 表头文案里自带 ▾，这里换成方向一致的箭头
+    const base = th.dataset.label || (th.dataset.label = th.textContent.replace(/[▾▴]/g,"").trim());
+    th.textContent = base + (on ? (S.sort.asc?" ▴":" ▾") : "");
+  });
+}
+
+function applySort(k, asc){
+  S.sort = {k, asc:!!asc};
+  S.gridShown = PAGE;
+  try{ preferences.setItem("bs_sort", JSON.stringify(S.sort)); }catch(e){}
+  syncSortUI();
+  renderProducts();
+}
+
+function initSortUI(){
+  const sel=$("fsort");
+  if(sel && !sel.options.length){
+    sel.innerHTML = SORT_OPTS.map(([v,label])=>
+      `<option value="${v}">按${label}</option>`).join("");
+  }
+  // 恢复上次的排序选择
+  try{
+    const raw = preferences.getItem("bs_sort");
+    if(raw){
+      const o = JSON.parse(raw);
+      if(o && SORT_OPTS.some(x=>x[0]===o.k)) S.sort={k:o.k, asc:!!o.asc};
+    }
+  }catch(e){}
+  if(sel){
+    sel.value = S.sort.k;
+    sel.onchange = ()=> applySort(sel.value, S.sort.asc);
+  }
+  if($("fsortDir")) $("fsortDir").onclick = ()=> applySort(S.sort.k, !S.sort.asc);
+  syncSortUI();
+}
+
+document.querySelectorAll("#ptbl th[data-s]").forEach(th=>{
+  th.onclick=()=>{ const k=th.dataset.s;
+    // 点同一列 = 反转方向，点新列 = 从降序开始（"最新/最大在前"更符合预期）
+    applySort(k, S.sort.k===k ? !S.sort.asc : false);
+  };
+});
+document.querySelectorAll("#viewToggle .vt").forEach(b=>{
+  b.onclick=()=>showView(b.dataset.view);
+});
+$("gsize").onchange=()=>{ S.gsize=+$("gsize").value;
+  try{ preferences.setItem("bs_gsize", String(S.gsize)); }catch(e){}
+  drawGrid(); };
+$("btnMore").onclick=()=>{ S.gridShown += PAGE*2; drawGrid(); };
+$("pgrid").addEventListener("click", e=>{
+  const card = e.target.closest(".pcard");
+  if(card) openDetail(card.dataset.id);
+});
+["q","fcat","fshop"].forEach(id=>{
+  $(id).addEventListener(id==="q"?"input":"change", ()=>{ S.gridShown=PAGE; renderProducts(); });
+});
+$("onlyDup").onclick=e=>{ S.onlyDup=!S.onlyDup; e.target.classList.toggle("on",S.onlyDup);
+  S.gridShown=PAGE; renderProducts(); };
+$("reset").onclick=()=>{
+  $("q").value=""; $("fcat").value=""; $("fshop").value="";
+  S.onlyDup=false; $("onlyDup").classList.remove("on");
+  S.sort={k:"mt",asc:false}; S.gridShown=PAGE;
+  try{ preferences.removeItem("bs_sort"); }catch(e){}
+  syncSortUI(); renderProducts();
+};
+
+/* ================= 人工修正 ================= */
+function filteredItems(){
+  const q=normQ($("iq").value.trim()), status=$("istatus").value;
+  return S.items.filter(x=>(!q||normQ(`${x.folder} ${x.title||""} ${x.pid||""}`).includes(q)) &&
+    (status==="all" || (status==="manual" && x.manual) || (status==="ignored" && x.ignored) ||
+      (status==="unidentified" && !x.pid && !x.ignored)));
+}
+function renderItems(){
+  const rows=filteredItems(), pages=Math.max(1,Math.ceil(rows.length/100));
+  S.itemPage=Math.min(S.itemPage,pages-1);
+  const visible=rows.slice(S.itemPage*100,(S.itemPage+1)*100);
+  $("icount").textContent=`${rows.length} / ${S.items.length} 条 · 已选择 ${S.itemSelection.size}`;
+  $("itemBatch").disabled=!S.itemSelection.size;
+  $("itemPrev").disabled=S.itemPage===0;
+  $("itemNext").disabled=S.itemPage>=pages-1;
+  $("ipage").textContent=`第 ${S.itemPage+1} / ${pages} 页 · 每页 100 条`;
+  $("itemSelectPage").checked=!!visible.length && visible.every(x=>S.itemSelection.has(x.folder));
+  $("itemSelectPage").indeterminate=visible.some(x=>S.itemSelection.has(x.folder)) && !$("itemSelectPage").checked;
+  document.querySelector("#itbl tbody").innerHTML=visible.map(x=>`<tr>
+    <td><input type="checkbox" data-select="${esc(x.folder)}" aria-label="选择 ${esc(x.folder)}" ${S.itemSelection.has(x.folder)?"checked":""}></td>
+    <td class="path">${esc(x.folder)}</td>
+    <td>${x.ignored?'<span class="tag">非商品</span>':x.pid?`${esc(x.title||"暂无商品信息")}<div class="muted">#${esc(x.pid)}</div>`:'<span class="muted">未识别</span>'}</td>
+    <td><span class="tag">${esc(x.confidence||"未识别")}</span> ${esc(x.how||"暂无匹配依据")}</td>
+    <td class="num">${fmtB(x.b)}</td>
+    <td><button class="chip sm" data-edit="${esc(x.folder)}">修正 / 依据</button>
+      <button class="chip sm" data-reveal="${esc(x.folder)}">打开</button></td></tr>`).join("") ||
+    '<tr><td colspan="6" class="muted">没有符合筛选条件的条目</td></tr>';
+  document.querySelectorAll("#itbl [data-select]").forEach(el=>el.onchange=()=>{
+    if(el.checked) S.itemSelection.add(el.dataset.select); else S.itemSelection.delete(el.dataset.select);
+    renderItems();
+  });
+  document.querySelectorAll("#itbl [data-edit]").forEach(el=>el.onclick=()=>editItems([el.dataset.edit]));
+  document.querySelectorAll("#itbl [data-reveal]").forEach(el=>el.onclick=()=>api("reveal_item",el.dataset.reveal));
+}
+$("itemSelectPage").onchange=e=>{
+  filteredItems().slice(S.itemPage*100,(S.itemPage+1)*100).forEach(x=>{
+    if(e.target.checked) S.itemSelection.add(x.folder); else S.itemSelection.delete(x.folder);
+  });
+  renderItems();
+};
+for(const name of ["iq","istatus"]) $(name).addEventListener(name==="iq"?"input":"change",()=>{
+  S.itemPage=0; S.itemSelection.clear(); renderItems();
+});
+$("itemPrev").onclick=()=>{S.itemPage--;renderItems();};
+$("itemNext").onclick=()=>{S.itemPage++;renderItems();};
+$("itemBatch").onclick=()=>editItems([...S.itemSelection]);
+async function exportItems(){
+  const r=await api("export_filtered","items",filteredItems().map(x=>x.folder),"识别管理");
+  toast(r.ok?`已导出 ${r.files[0]}`:r.error,r.ok?"ok":"err");
+}
+$("itemExport").onclick=exportItems;
+async function editItems(folders){
+  if(S.busy){toast("请先等待或取消当前任务","err");return;}
+  if(!folders.length || folders.length>1000){toast("每次请选择 1–1000 个条目","err");return;}
+  const item=folders.length===1?S.items.find(x=>x.folder===folders[0]):null;
+  const automatic=item?.automatic||{};
+  const ov=document.createElement("div");
+  ov.className="overlay";
+  ov.innerHTML=`<form class="modal" style="width:min(700px,94vw)">
+    <h3>修正 ${folders.length} 个条目的归属</h3>
+    <div class="mbody">
+      <div class="path" style="max-height:120px;overflow:auto">${folders.slice(0,50).map(esc).join("<br>")}${folders.length>50?"<br>…":""}</div>
+      ${item?`<p class="muted">当前：${esc(item.how||"未识别")} ${item.pid?`#${esc(item.pid)}`:""}<br>
+        自动识别依据：${esc(automatic.how||"无匹配结果")} ${automatic.product_id?`#${esc(automatic.product_id)}`:""}<br>
+        文件名 ID：${esc(item.ids_strong.join("、")||"无")} · 弱线索：${esc(item.ids_weak.join("、")||"无")}</p>
+        ${automatic.match_detail?`<details><summary>查看匹配证据</summary><pre style="white-space:pre-wrap">${esc(JSON.stringify(automatic.match_detail,null,2))}</pre></details>`:""}`:""}
+      <p><label>处理方式 <select name="action">
+        <option value="bind">绑定到 BOOTH 商品</option><option value="unmatch">取消归属，保留为未识别</option>
+        <option value="ignore">标记非商品，不再列入未识别</option><option value="reset">清除人工修正，恢复自动识别</option>
+      </select></label></p>
+      <p data-target><label>商品 ID 或链接<br><input name="target" style="width:100%;margin-top:6px" placeholder="1234567 或 https://…booth.pm/…/items/1234567" value="${esc(item?.pid||"")}"></label></p>
+      <p class="muted" data-note>可离线绑定；联网刷新可补全商品名称与图片。同一批条目将归属于同一商品。</p>
+      <div role="alert" data-error style="color:var(--bad)"></div>
+    </div><div class="mfoot"><button type="button" data-close>取消</button><button class="primary" type="submit">保存修正</button></div>
+  </form>`;
+  document.body.appendChild(ov);
+  const form=ov.querySelector("form"), action=form.elements.action, target=form.elements.target;
+  action.onchange=()=>{
+    ov.querySelector("[data-target]").classList.toggle("hidden",action.value!=="bind");
+    ov.querySelector("[data-note]").textContent={
+      bind:"可离线绑定；联网刷新可补全商品名称与图片。同一批条目将归属于同一商品。",
+      unmatch:"阻止自动识别将这些条目重新归属。可在此恢复自动识别。",
+      ignore:"保留本地占用与条目记录，仅从商品归属及未识别列表中排除。",
+      reset:"恢复最近可用的自动结果；再次刷新将重新运行自动识别。"
+    }[action.value];
+  };
+  let saving=false;
+  ov.onclick=e=>{if(!saving&&(e.target===ov||e.target.hasAttribute("data-close")))ov.remove();};
+  form.onsubmit=async e=>{
+    e.preventDefault(); if(saving)return;
+    saving=true; form.querySelector('[type="submit"]').disabled=true;
+    const r=await api("set_item_override",folders,action.value,target.value);
+    if(!r.ok){
+      saving=false; form.querySelector('[type="submit"]').disabled=false;
+      ov.querySelector("[data-error]").textContent=r.error||"保存失败";return;
+    }
+    ov.remove(); S.itemSelection.clear(); await loadAll();
+    toast(r.warning||`已保存 ${r.count} 个条目的修正`,r.warning?"err":"ok");
+  };
+  target.focus();
+}
+
+/* ================= 内容核对 ================= */
+function renderHashGroups(){
+  const r=S.hashReport;
+  $("hashExport").disabled=!r;
+  if(!r){$("hashSummary").textContent="尚未校验文件内容。刷新目录后需要重新校验。";$("hashGroups").innerHTML="";$("hashMore").classList.add("hidden");return;}
+  const q=normQ($("hq").value.trim());
+  const groups=r.groups.filter(g=>!q||g.paths.some(p=>normQ(p).includes(q)));
+  $("hashSummary").textContent=`校验时间：${r.checked_at} · ${r.files} 个文件 / ${r.candidates} 个同大小候选 · ${r.groups.length} 组相同 SHA-256 · 额外逻辑大小 ${fmtB(r.extra_bytes)}（不含硬链接额外路径）。结果为当时快照，文件变动后请重新校验。`;
+  if(r.warning_count) $("hashSummary").textContent+=` ${r.warning_count} 项未完整读取或已变化。`;
+  $("hashGroups").innerHTML=groups.slice(0,S.hashShown).map(g=>`<details class="sub" style="margin-top:10px">
+    <summary>${g.paths.length} 个路径 · 单文件 ${fmtB(g.size)} · 额外逻辑大小 ${fmtB(g.extra_bytes)}${g.hardlink_paths?` · 含 ${g.hardlink_paths} 个硬链接额外路径`:""}</summary>
+    <div class="path muted" style="margin:10px 0">SHA-256: ${esc(g.sha256)}</div>
+    ${g.paths.map(p=>`<div class="path" style="margin:6px 0"><button class="chip sm" data-file="${esc(p)}">定位</button> ${esc(p)}</div>`).join("")}
+    </details>`).join("") || '<p class="muted">没有发现符合条件的相同内容文件。</p>';
+  if(r.warnings.length) $("hashGroups").innerHTML+=`<details><summary>未完整读取的路径（最多列出 200 项）</summary><div class="path">${r.warnings.map(esc).join("<br>")}</div></details>`;
+  $("hashMore").classList.toggle("hidden",groups.length<=S.hashShown);
+  $("hashGroups").querySelectorAll("[data-file]").forEach(b=>b.onclick=async()=>{
+    const result=await api("reveal_verified_file",b.dataset.file);
+    if(!result.ok)toast(result.error,"err");
+  });
+}
+$("hq").oninput=()=>{S.hashShown=50;renderHashGroups();};
+$("hashMore").onclick=()=>{S.hashShown+=50;renderHashGroups();};
+$("checkFiles").onclick=async()=>{
+  if(S.busy)return;
+  const r=await api("check_duplicate_files");
+  if(!r.ok){toast(r.error,"err");return;}
+  S.busy=true;showOverlay("正在校验文件内容…");startPolling();
+};
+$("hashExport").onclick=async()=>{
+  const r=await api("export_duplicate_check");
+  toast(r.ok?`已导出 ${r.files[0]}`:r.error,r.ok?"ok":"err");
+};
+
+/* ================= 未识别 ================= */
+function renderUnid(){
+  const q=normQ($("uq").value.trim());
+  let rows=S.unid.filter(x=>!q||normQ(x.f||"").includes(q));
+  rows.sort(cmpBy(S.usort.k, S.usort.asc));
+  $("ucount").textContent=`${rows.length} / ${S.unid.length} 条`;
+  document.querySelector("#utbl tbody").innerHTML = rows.map(x=>
+    `<tr><td class="num">${esc(fmtDay(x.mt))}</td>
+      <td class="num">${fmtB(x.b)}</td>
+      <td class="path">${esc(x.f)}</td>
+      <td class="num">${x.n}</td>
+      <td><button class="chip sm" data-folder="${esc(x.f)}">打开</button>
+        <button class="chip sm" data-edit="${esc(x.f)}">修正</button></td></tr>`
+  ).join("") || `<tr><td colspan="5" class="muted" style="padding:16px">没有匹配的条目</td></tr>`;
+  document.querySelectorAll("#utbl button[data-folder]").forEach(b=>{
+    b.onclick=()=>api("reveal_item", b.dataset.folder);
+  });
+  document.querySelectorAll("#utbl button[data-edit]").forEach(b=>b.onclick=()=>editItems([b.dataset.edit]));
+  document.querySelectorAll("#utbl th[data-s]").forEach(th=>{
+    const on = th.dataset.s===S.usort.k;
+    th.classList.toggle("sorted", on);
+    const base = th.dataset.label || (th.dataset.label = th.textContent.replace(/[▾▴]/g,"").trim());
+    th.textContent = base + (on ? (S.usort.asc?" ▴":" ▾") : "");
+  });
+}
+document.querySelectorAll("#utbl th[data-s]").forEach(th=>{
+  th.onclick=()=>{ const k=th.dataset.s;
+    S.usort={k, asc:S.usort.k===k ? !S.usort.asc : false}; renderUnid(); };
+});
+$("uq").addEventListener("input",renderUnid);
+
+/* ================= 重复 ================= */
+function renderDups(){
+  const q=normQ($("dq").value.trim());
+  let rows=S.dups.filter(d=>!q ||
+    normQ((d.title||"")+" "+(d.folders||[]).join(" ")).includes(q));
+  rows.sort(cmpBy(S.dsort.k, S.dsort.asc));
+  $("dupLegend").innerHTML =
+    `共 <b>${S.dups.length}</b> 件商品存在多份下载，待核对占用约 <b>${fmtB(S.summary.wasteTotal)}</b>。`+
+    `同一商品可能包含不同角色版本、更新或源文件；下方内容校验可进一步核对实际相同的文件。`;
+  $("dcount").textContent = q ? `${rows.length} / ${S.dups.length} 件` : "";
+  document.querySelector("#dtbl tbody").innerHTML = rows.map(d=>
+    `<tr><td class="num">${fmtB(d.waste)}</td>
+      <td>${esc(d.title)}</td>
+      <td class="num cm"><b>${d.n}</b></td>
+      <td class="muted">${esc(fmtDay(d.mt))}</td>
+      <td>${d.folders.map(f=>`<div class="path" data-folder="${esc(f)}"
+        style="cursor:pointer">${esc(f)}</div>`).join("")}</td></tr>`
+  ).join("") || `<tr><td colspan="5" class="muted" style="padding:16px">没有匹配的重复项</td></tr>`;
+  document.querySelectorAll("#dtbl .path[data-folder]").forEach(d=>{
+    d.onclick=()=>api("reveal_item", d.dataset.folder);
+  });
+  document.querySelectorAll("#dtbl th[data-s]").forEach(th=>{
+    const on = th.dataset.s===S.dsort.k;
+    th.classList.toggle("sorted", on);
+    const base = th.dataset.label || (th.dataset.label = th.textContent.replace(/[▾▴]/g,"").trim());
+    th.textContent = base + (on ? (S.dsort.asc?" ▴":" ▾") : "");
+  });
+}
+document.querySelectorAll("#dtbl th[data-s]").forEach(th=>{
+  th.onclick=()=>{ const k=th.dataset.s;
+    S.dsort={k, asc:S.dsort.k===k ? !S.dsort.asc : false}; renderDups(); };
+});
+$("dq").addEventListener("input",renderDups);
+
+/* ================= 导出按钮 ================= */
+$("unidExport").onclick=async()=>{ toast("正在导出…");
+  const q=$("uq").value.trim();
+  const r=await api("export_filtered","unid",selectedAux("unid"), q?`未识别-${q}`:"未识别全部");
+  if(r.ok) toast(`已导出 ${r.files[0]}`,"ok"); else toast(r.error||"导出失败","err"); };
+$("dupExport").onclick=async()=>{ toast("正在导出…");
+  const r=await api("export_filtered","dups",selectedAux("dups"),"重复下载");
+  if(r.ok) toast(`已导出 ${r.files[0]}`,"ok"); else toast(r.error||"导出失败","err"); };
+$("openHome").onclick=async()=>{ const i=await api("app_info"); if(i.ok) api("open_path", i.home); };
+$("openExport").onclick=async()=>{
+  const i=await api("app_info");
+  const dir=(i.ok && i.home) ? `${i.home}\\export` : "";
+  const r=await api("open_path", dir);
+  if(!r.ok) toast(r.error||"导出目录还没生成，先导出一次","err");
+};
+$("clearCache").onclick=async()=>{
+  if(!confirm("清空商品与搜索缓存？下次刷新会重新联网抓取（数据不丢）。")) return;
+  const r=await api("clear_cache");
+  if(r.ok) toast(`已清除 ${r.removed} 个缓存文件`,"ok"); else toast(r.error,"err");
+};
+
+/* ================= 加载 ================= */
+$("offlineMode").onchange=async e=>{
+  const r=await preferences.setItem("offline", String(e.target.checked));
+  if(r.ok) toast(e.target.checked?"已启用离线模式":"已启用联网模式","ok");
+  else {e.target.checked=!e.target.checked; toast(r.error||"设置失败","err");}
+};
+async function loadAll(){
+  const st=await api("get_state");
+  if(!st || st.ok===false){toast(st?.error||"读取本地状态失败","err");return;}
+  S.busy=!!st.busy;
+  if(S.busy && !pollTimer){showOverlay("正在恢复后台任务进度…");startPolling();}
+  storedPrefs = st.preferences || {};
+  $("offlineMode").checked = !!st.offline;
+  $("rootInput").value=st.root||"";
+  $("dirInfo").innerHTML =
+    `数据目录：<span class="path">${esc(st.home)}</span><br>`+
+    `扫描根目录：<span class="path">${esc(st.root)}</span><br>`+
+    `商品缓存：${fmtN(st.cache_items)} 个　搜索缓存：${fmtN(st.cache_search)} 个`;
+  if(st.summary) $("rootInput").title = "上次生成："+(st.summary.generated||"");
+
+  /* ★ 扫描根目录不可访问时立刻说清楚。
+     背景：X:/Y:/Z: 是网络映射，NAS 一断，Path.is_dir() 在服务端会抛
+     PermissionError（已在后端收敛）。以前这里不检查，用户点「刷新数据」
+     只会看到一句「出错：拒绝访问」，不知道是网盘掉了还是路径写错了。 */
+  const rootWarn = $("rootWarn");
+  if(rootWarn){
+    if(st.root_ok===false && st.root){
+      rootWarn.classList.remove("hidden");
+      rootWarn.innerHTML = "⚠ 扫描根目录当前不可访问：" +
+        esc(st.root_problem || st.root) +
+        "<br><span class=\"muted\">网络盘断开、未登录或权限变更都会这样。" +
+        "请检查映射后点「浏览…」重新选择，或直接改正下面的路径。</span>";
+    }else{
+      rootWarn.classList.add("hidden");
+    }
+  }
+
+  const s=await api("get_summary");
+  if(!s.ok||!s.summary){
+    $("emptyState").classList.remove("hidden");
+    $("overviewBody").classList.add("hidden");
+    $("emptyState").innerHTML = '欢迎使用 BoothNest。<br>先点顶部「浏览…」选择下载目录，再点「刷新数据」。'+
+      '<br><span class="muted">只读扫描本地文件，不移动或删除下载。联网模式会向 BOOTH 查询从文件名提取的关键词和商品 ID；可在「设置与说明」中选择离线模式。</span>';
+    return;
+  }
+  $("emptyState").classList.add("hidden");
+  $("overviewBody").classList.remove("hidden");
+  S.summary=s.summary;
+  if(st.dataset_root && st.dataset_root!==st.root){
+    rootWarn.classList.remove("hidden");
+    rootWarn.textContent="列表来自上次扫描目录："+st.dataset_root+"。请刷新数据以扫描新目录。";
+  }
+  if((st.scan_warnings||[]).length){
+    rootWarn.classList.remove("hidden");
+    rootWarn.textContent = `上次扫描有 ${st.scan_warnings.length} 项未完整读取，统计可能不完整。`+
+      st.scan_warnings.slice(0,3).join("；");
+  }
+
+  /* schema 迁移提示：把「静默归零」变成看得见的一次性通知。
+     旧 dataset（bytes 字段）升级到新 schema（size 字段）时，
+     若不提示，用户不会知道刚才那一下为什么数字变了。 */
+  if(s.migration && s.migration.changed){
+    const acts=(s.migration.actions||[]).join("；");
+    toast(`数据格式已从 v${s.migration.from} 升级到 v${s.migration.to}（${acts}）`,"ok");
+    $("dirInfo").innerHTML +=
+      `<br><span class="muted">数据格式：v${s.migration.from} → v${s.migration.to}</span>`;
+  }
+
+  const [p,u,d,sg,items,hashes]=await Promise.all([
+    api("get_products"), api("get_unidentified"),
+    api("get_duplicates"), api("get_groups","sub"), api("get_items"), api("get_duplicate_check")
+  ]);
+  S.rows = p.ok? p.rows : [];
+  S.unid = u.ok? u.rows : [];
+  S.dups = d.ok? d.rows : [];
+  S.items = items.ok? items.rows : [];
+  S.itemSelection = new Set([...S.itemSelection].filter(f=>S.items.some(x=>x.folder===f)));
+  S.hashReport = hashes.ok? hashes.report : null;
+  S.summary.avatars = (await api("get_groups","avatar")).rows || [];
+  S.summary.subs = sg.ok? sg.rows.map(r=>[r.key,r.count]) : [];
+
+  const cats=[...new Set(S.rows.map(x=>x.c))].sort();
+  const shopsArr=[...new Set(S.rows.map(x=>x.s).filter(Boolean))].sort();
+  $("fcat").innerHTML='<option value="">全部分类</option>'+cats.map(c=>`<option>${esc(c)}</option>`).join("");
+  $("fshop").innerHTML='<option value="">全部店铺</option>'+shopsArr.map(c=>`<option>${esc(c)}</option>`).join("");
+
+  /* 本地文件时间是否真的取到了？
+     ★ 老数据集（升级前生成的）里没有 mtime 字段，按「下载时间」排会全是 0，
+       界面看起来"没排序"而不是"没数据"。这种情况必须明说，
+       否则用户会以为是排序功能坏了（实测这类静默失败最难查）。 */
+  const mtN = S.rows.filter(r=>r.mt>0).length;
+  if(S.rows.length && !mtN){
+    toast("当前数据里没有本地下载时间，请点「刷新数据」重扫一次再按时间排序","err");
+  }else if(mtN && mtN < S.rows.length){
+    $("mtNote").textContent =
+      `· ${S.rows.length-mtN} 件没有本地时间（已排在最后）`;
+  }
+
+  initSortUI();
+  await renderOverview();
+  // 恢复上次选的视图（网格/表格）
+  let saved = null;
+  try{ saved = preferences.getItem("bs_view"); }catch(e){}
+  if(saved==="table" || saved==="grid") S.view = saved;
+  try{
+    const gs = preferences.getItem("bs_gsize");
+    if(gs){ S.gsize = +gs; $("gsize").value = String(S.gsize); }
+  }catch(e){}
+  showView(S.view);
+  renderUnid(); renderDups(); renderItems(); renderHashGroups();
+  // 网格首屏图片预热（后台并发拉，滚动时基本秒出）
+  api("prefetch_thumbs", 120);
+}
+
+/* ================= 启动 ================= */
+window.addEventListener("beforeunload", ()=>{
+  fetch("/api/window_closed", {method:"POST", keepalive:true,
+    headers:{"Content-Type":"application/json", "X-BoothNest-Token":SESSION_TOKEN},
+    body:JSON.stringify({args:[]})}).catch(()=>{});
+});
+window.addEventListener("pageshow", ()=>api("heartbeat"));
+setInterval(()=>api("heartbeat"), 2000);
+async function boot(){
+  await api("heartbeat");
+  // 等服务起来（HTTP 模式下页面本身就是服务托管的，通常已就绪）
+  for(let i=0;i<40;i++){
+    const p = await fetch("/api/ping").then(r=>r.json()).catch(()=>null);
+    if(p && p.ok){ await loadAll(); return; }
+    await new Promise(r=>setTimeout(r,250));
+  }
+  $("emptyState").innerHTML =
+    '本地服务未就绪。<br><span class="muted">请关闭本窗口后重新启动程序。</span>';
+}
+boot();
+</script>
+</body>
+</html>

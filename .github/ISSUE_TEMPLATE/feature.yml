@@ -1,0 +1,22 @@
+name: 功能建议 / Feature request
+description: 描述你想解决的实际使用问题
+title: "[Feature] "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 使用中遇到了什么问题？
+      description: 请描述具体场景，以及现有功能为什么不方便。
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: 希望怎样改进？
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 当前替代方法或补充说明
