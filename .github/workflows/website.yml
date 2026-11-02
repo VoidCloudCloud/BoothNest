@@ -1,0 +1,46 @@
+name: Website checks
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  website:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: '24'
+      - uses: actions/setup-python@v7.0.0
+        with:
+          python-version: '3.12'
+      - name: Check website source and behaviour
+        working-directory: web
+        run: |
+          npm run check
+          node --check online.mjs
+          node --check public/online-client.js
+          npm test
+          python scripts/build-website.py
+      - name: Build the empty website container
+        working-directory: web
+        run: |
+          docker build -t boothnest-web-ci .
+          docker run -d --name boothnest-web-ci -p 127.0.0.1:8010:8010 -e BOOTH_NEST_USER=fixture-user -e BOOTH_NEST_PASS=fixture-pass boothnest-web-ci
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8010/healthz; then break; fi
+            sleep 1
+          done
+          curl --fail --silent -u fixture-user:fixture-pass http://127.0.0.1:8010/api/items > /tmp/boothnest-items.json
+          python -c "import json; value=json.load(open('/tmp/boothnest-items.json')); assert value['count']==0 and value['items']==[],value"
+          test "$(curl --silent -o /dev/null -w '%{http_code}' http://127.0.0.1:8010/api/items)" = 401
+          docker stop boothnest-web-ci
+      - uses: actions/upload-artifact@v7.0.2
+        with:
+          name: BoothNest-Website-Source
+          path: web/release/*
+          retention-days: 14

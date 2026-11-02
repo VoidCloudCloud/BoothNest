@@ -1,0 +1,30 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { once } from 'node:events';
+import { createApp } from '../server.mjs';
+
+test('HTTP catalogue, imports and origin checks work without the original site', async t => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'vrcatalogue-http-'));
+  await writeFile(path.join(dir, 'catalog.seed.json'), JSON.stringify({ schemaVersion: 1, categories: [{ slug: 'hair', en: 'Hair', children: [] }], items: [{ id: 101, title: 'Local hair', category: '3D Hair', price_jpy: 500 }] }));
+  const { server } = await createApp({ dataDir: dir });
+  server.listen(0, '127.0.0.1'); await once(server, 'listening');
+  const base = `http://127.0.0.1:${server.address().port}`;
+  t.after(async () => { await new Promise(resolve => { server.close(resolve); server.closeAllConnections(); }); await rm(dir, { recursive: true, force: true }); });
+  assert.equal((await fetch(base)).status, 200);
+  assert.match((await fetch(base + '/app.js')).headers.get('content-type'), /javascript/);
+  assert.equal((await (await fetch(base + '/api/items?q=hair')).json()).count, 1);
+  assert.equal((await fetch(base + '/api/items/999')).status, 404);
+  const post = body => ({ method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  const foreign = post({ items: [{ id: 102, title: 'Foreign' }] }); foreign.headers.origin = 'https://evil.example';
+  assert.equal((await fetch(base + '/api/import', foreign)).status, 403);
+  assert.equal((await fetch(base + '/api/booth', post({ url: 'https://127.0.0.1/private' }))).status, 400);
+  assert.equal((await fetch(base + '/api/booth-search', post({ q: '' }))).status, 400);
+  assert.equal((await fetch(base + '/api/import', post({ items: [{ id: 102, title: 'New dress', category: '3D Clothing' }] }))).status, 200);
+  const exported = await (await fetch(base + '/api/export')).json();
+  assert.deepEqual(exported.items.map(item => item.id), [101, 102]);
+  assert.equal((await fetch(base + '/api/import', post({ items: [{ id: 'bad' }] }))).status, 400);
+  assert.equal((await (await fetch(base + '/api/status')).json()).items, 2);
+});

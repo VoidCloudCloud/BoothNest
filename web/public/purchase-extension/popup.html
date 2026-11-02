@@ -1,0 +1,6 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>BoothNest 已购同步</title><link rel="stylesheet" href="popup.css"></head><body>
+<h1>BoothNest 已购同步</h1><p>每天同步一次。浏览器与 GUI 均需开启。</p>
+<form id="pair-form"><label for="pairing">粘贴 GUI 生成的配对信息</label><input id="pairing" required autocomplete="off" placeholder="http://127.0.0.1:4317/#boothnest-pair=…"><button>配对并首次同步</button></form>
+<section id="connected" hidden><button id="sync">立即同步</button><p>自动同步可在 GUI 的「已购自动同步」中暂停。</p></section>
+<p id="status" role="status" aria-live="polite"></p><a href="https://accounts.booth.pm/library" target="_blank" rel="noreferrer">打开 BOOTH 下载库 / 登录</a>
+<script src="popup.js"></script></body></html>

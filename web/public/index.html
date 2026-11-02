@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="charcoal">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#18181c">
+  <meta name="description" content="本地 BOOTH / VRChat 素材浏览器。按模型、分类、价格筛选，收藏喜欢的素材。">
+  <title>BoothNest — 本地素材库与 BOOTH 素材探索</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/local-tools.css">
+  <script type="module" src="/app.js"></script>
+  <script type="module" src="/desktop-client.js"></script>
+  <script src="/online-client.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#results">跳到商品列表</a>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="/" aria-label="BoothNest 首页"><img src="/favicon.svg" alt="" width="27" height="27"><span><b>Booth</b>Nest<span class="local-badge">LOCAL</span></span></a>
+      <div class="top-settings">
+        <label class="select-wrap"><span data-icon="globe"></span><select id="language" aria-label="界面语言"><option value="zh">简体中文</option><option value="en">English</option></select></label>
+        <label class="select-wrap"><span data-icon="coins"></span><select id="currency" aria-label="显示货币"><option value="JPY">JPY · ¥</option><option value="CNY">CNY · ¥</option><option value="USD">USD · $</option></select></label>
+        <label class="select-wrap theme-select"><span data-icon="sun"></span><select id="theme" aria-label="外观主题"><option value="charcoal">Charcoal</option><option value="cloud">Cloud</option></select></label>
+      </div>
+      <nav class="top-nav"><a href="/" class="nav-active" data-i18n="browse">浏览</a><button type="button" data-action="about" data-i18n="about">关于</button></nav>
+      <button type="button" class="btn sync-button" data-action="sync-settings"><span data-icon="refresh"></span><span data-i18n="syncTitle">自动同步</span><i id="sync-dot" class="sync-dot"></i></button>
+      <button type="button" class="btn data-button" data-action="data"><span data-icon="database"></span><span data-i18n="dataLibrary">数据管理</span></button>
+    </div>
+  </header>
+  <main class="page">
+    <div class="notice" id="notice"><span class="notice-symbol" data-icon="info"></span><p><strong data-i18n="noticeTitle">你的素材探索，不必止步。</strong><span data-i18n="noticeBody">本地目录已就绪，搜索、筛选和收藏均可独立使用。</span></p><button type="button" class="icon-btn" data-action="dismiss-notice" aria-label="关闭提示"><span data-icon="x"></span></button></div>
+    <div class="layout">
+      <button type="button" class="mobile-filter btn" data-action="toggle-filters"><span data-icon="filter"></span><span data-i18n="filter">筛选</span><span id="mobile-filter-count"></span></button>
+      <aside class="sidebar" id="sidebar" aria-label="素材筛选">
+        <div class="sidebar-tabs" id="sidebar-tabs"></div>
+        <div class="filter-summary" id="filter-summary"></div>
+        <section class="filter-section category-section"><div class="section-heading"><h2><span data-icon="layers"></span><span data-i18n="categories">素材分类</span></h2><button type="button" class="text-button" data-action="clear" data-key="category" data-i18n="clear">清除</button></div><div id="categories" class="category-list"></div></section>
+        <section class="filter-section local-filters">
+          <div class="section-heading"><h2><span data-icon="database"></span><span data-i18n="localFilters">本地文件筛选</span></h2><button class="text-button" type="button" data-action="data" data-i18n="connectSettings">连接设置</button></div>
+          <label class="inline-setting"><span data-i18n="availability">商品范围</span><select id="availability" aria-label="商品范围"><option value="all">全部商品</option><option value="local">本地库已收录</option><option value="missing">扫描中未收录</option></select></label>
+          <p class="feature-note" data-i18n="localScopeHint">以下文件条件仅匹配本地商品；选择“全部商品”可清除这些条件。通用分类请用上方“素材分类”。</p>
+          <div class="local-filter-group"><span class="filter-label" data-i18n="localCategory">本地文件分类</span><div id="local-categories" class="check-list"></div></div>
+          <div class="local-filter-group"><span class="filter-label" data-i18n="entryType">本地文件类型</span><div id="file-types" class="type-options"></div></div>
+          <label class="inline-setting"><span data-i18n="localSize">本地体积</span><select id="min-bytes" aria-label="本地体积下限"><option value="0">不限</option><option value="104857600">≥ 100 MiB</option><option value="1073741824">≥ 1 GiB</option><option value="5368709120">≥ 5 GiB</option><option value="10737418240">≥ 10 GiB</option></select></label>
+          <label class="check-label duplicates-label"><input id="duplicates" type="checkbox"><span data-i18n="duplicates">仅有多个本地副本的商品</span></label>
+          <label class="inline-setting purchase-setting"><span data-i18n="purchaseFilter">已购记录</span><select id="purchase-filter" aria-label="已购记录筛选"><option value="all">不限</option><option value="recorded">已同步已购</option><option value="missing-local">已购且本地未收录</option><option value="not-recorded">未同步已购记录</option></select></label>
+          <p class="feature-note" data-i18n="scanBasis">依据最近扫描；定位时检查文件是否存在。</p>
+        </section>
+        <section class="filter-section"><div class="section-heading"><h2 data-i18n="features">功能与支持</h2><button type="button" class="text-button" data-action="clear" data-key="feature" data-i18n="clear">清除</button></div><div id="features" class="check-list"></div><p class="feature-note" data-i18n="featureNote">按商品说明识别；兼容性以作者页面为准。</p></section>
+        <section class="filter-section compact-section"><label class="inline-setting"><span data-i18n="content">内容分级</span><select id="adult" aria-label="内容分级"><option value="safe">安全内容</option><option value="all">全部内容</option><option value="suggestive">仅暗示性内容</option><option value="adult">仅成人内容</option></select></label></section>
+        <section class="filter-section price-section"><div class="section-heading"><h2><span data-i18n="price">价格</span><span class="muted"> (JPY)</span></h2><label class="check-label free-label"><input id="free" type="checkbox"><span data-i18n="freeOnly">仅免费</span></label></div><div class="price-inputs"><label><span>¥</span><input id="price-min" aria-label="最低价格（日元）" type="number" min="0" max="1000000" step="100" value="0"></label><span class="muted">—</span><label><span>¥</span><input id="price-max" aria-label="最高价格（日元）" type="number" min="0" max="1000000" step="100" placeholder="不限"></label></div><input id="price-range" type="range" min="0" max="15000" step="100" value="15000" aria-label="最高价格滑块"><div class="range-labels"><span>¥0</span><span>¥15,000+</span></div></section>
+        <section class="filter-section"><div class="section-heading"><h2><span data-i18n="avatars">适配模型</span><span id="avatar-selected" class="muted"></span></h2><button type="button" class="text-button" data-action="clear" data-key="avatar" data-i18n="clear">清除</button></div><div class="mini-search"><span data-icon="search"></span><input id="avatar-search" type="search" placeholder="搜索模型…" aria-label="搜索适配模型"></div><div id="avatar-list" class="option-list avatar-list"></div><label class="check-label"><input id="include-mentions" type="checkbox"><span data-i18n="includeMentions">包含未确认提及</span></label><p class="feature-note" data-i18n="avatarBasis">已确认关系与原有记录优先；未确认提及需单独启用。</p></section>
+        <section class="filter-section"><div class="section-heading"><h2 data-i18n="authors">创作者</h2><button type="button" class="text-button" data-action="clear" data-key="author" data-i18n="clear">清除</button></div><div class="mini-search"><span data-icon="search"></span><input id="author-search" type="search" placeholder="搜索创作者…" aria-label="搜索创作者"></div><div id="author-list" class="option-list author-list"></div></section>
+        <section class="filter-section"><div class="section-heading"><h2 data-i18n="tags">标签</h2><button type="button" class="text-button" data-action="clear" data-key="tag" data-i18n="clear">清除</button></div><div class="mini-search"><span data-icon="search"></span><input id="tag-search" type="search" placeholder="搜索标签…" aria-label="搜索标签"></div><div id="tag-list" class="tag-filter-list"></div></section>
+        <div class="sidebar-footer"><span class="status-dot"></span><span data-i18n="localFirst">本地优先 · 收藏存于此浏览器</span></div>
+      </aside>
+      <section class="results" id="results" aria-label="商品列表">
+        <div id="local-overview" class="local-overview" role="status"></div>
+        <div class="results-toolbar"><div class="toolbar-left"><label class="toolbar-select"><span data-icon="flame"></span><select id="sort" aria-label="商品排序"><option value="trending">热门精选</option><option value="newest">最新发布</option><option value="oldest">最早发布</option><option value="likes">最多喜欢</option><option value="price-asc">价格从低到高</option><option value="price-desc">价格从高到低</option><option value="title">名称 A–Z</option><option value="local-size">本地体积从大到小</option><option value="local-newest">本地最近修改</option><option value="local-copies">本地条目最多</option></select></label><label class="toolbar-select page-size"><span data-icon="grid"></span><select id="page-size" aria-label="每页商品数量"><option value="20">20 件 / 页</option><option value="40">40 件 / 页</option><option value="60">60 件 / 页</option><option value="100">100 件 / 页</option></select></label></div><nav class="pagination top-pagination" aria-label="顶部翻页"></nav></div>
+        <div class="search-row"><form id="search-form" class="search-box" role="search"><span data-icon="search"></span><input id="search" type="search" placeholder="搜索服装、发型、配饰或创作者…" autocomplete="off" aria-label="搜索素材"><kbd>/</kbd></form><button class="icon-btn view-toggle" type="button" data-action="density" aria-label="切换紧凑网格"><span data-icon="grid"></span></button><div class="result-count" id="result-count" role="status" aria-live="polite"></div></div>
+        <div id="active-filters" class="active-filters"></div>
+        <div id="grid" class="product-grid" aria-busy="true"></div>
+        <footer class="results-footer"><span id="catalog-status">BoothNest 2.0</span><nav class="pagination bottom-pagination" aria-label="底部翻页"></nav></footer>
+      </section>
+    </div>
+    <footer class="page-footer"><span data-i18n="footer">为每一次灵感，找到合适的素材。</span><span>BoothNest · BOOTH / VRChat</span></footer>
+  </main>
+  <dialog id="detail-dialog" class="detail-dialog" aria-label="商品详情"></dialog>
+  <dialog id="data-dialog" class="data-dialog" aria-label="数据管理"></dialog>
+  <dialog id="about-dialog" class="about-dialog" aria-label="关于此项目"></dialog>
+  <dialog id="local-tools-dialog" class="local-tools-dialog" aria-label="本地管理"></dialog>
+  <dialog id="scan-dialog" class="data-dialog" aria-label="扫描下载目录"></dialog>
+  <dialog id="purchase-guide-dialog" class="data-dialog purchase-guide-dialog" aria-label="设置已购采集书签"></dialog>
+  <div id="toast" class="toast" popover="manual" role="status" aria-live="polite"></div>
+</body>
+</html>

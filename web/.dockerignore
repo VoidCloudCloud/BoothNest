@@ -1,0 +1,16 @@
+**
+!Dockerfile
+!server.mjs
+!online.mjs
+!package.json
+!LICENSE
+!THIRD_PARTY_NOTICES.md
+!lib/
+!lib/**
+!public/
+!public/**
+!engine/
+!engine/**
+public/media/
+**/__pycache__/
+**/*.pyc

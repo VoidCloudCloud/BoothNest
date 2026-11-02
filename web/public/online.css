@@ -1,0 +1,6 @@
+[data-scan-action="pick"], #library-form, [data-action="disconnect-library"],
+#purchase-auto-sync, [data-action="reveal-local"], [data-tool-action="reveal"],
+[data-tool-action="check-reveal"], #btnPick, #btnFolder, #openHome, #openExport {
+  display: none !important;
+}
+.online-note { margin-top: 12px; }

@@ -45,3 +45,19 @@ config.json
 dataset.json
 probe_cache.json
 manual_overrides.json
+
+# Website source only; runtime datasets and captures remain outside Git.
+!/web/
+/web/data/
+/web/public/media/
+/web/reference/
+/web/artifacts/
+/web/release/
+/web/dist/
+/web/desktop-build/
+/web/resources/*.sqlite*
+/web/resources/*.db*
+/web/resources/*.parquet
+/web/resources/*.manifest.json
+/web/.env
+/web/node_modules/

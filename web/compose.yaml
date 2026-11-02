@@ -1,0 +1,21 @@
+services:
+  boothnest:
+    build: .
+    image: boothnest-web:2.0.0-beta.5
+    restart: unless-stopped
+    ports:
+      - "${BOOTH_NEST_BIND:-127.0.0.1}:8010:8010"
+    environment:
+      BOOTH_NEST_USER: "${BOOTH_USER:-admin}"
+      BOOTH_NEST_PASS: "${BOOTH_PASS:?Set BOOTH_PASS in .env}"
+      BOOTH_NEST_ALLOWED_HOSTS: "${BOOTH_NEST_ALLOWED_HOSTS:-localhost:8010,127.0.0.1:8010}"
+    volumes:
+      - "./data:/data/BoothShelf"
+      # Optional existing download directory, always read only:
+      # - "/absolute/path/to/downloads:/downloads:ro"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8010/healthz',timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s

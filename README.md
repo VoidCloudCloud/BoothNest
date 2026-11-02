@@ -1,5 +1,9 @@
 # BoothNest Desktop
 
+**基础网站新版：** [BoothNest Web 2.0.0-beta.5](web/README.md) 已提供独立网站源码，包含本机和带登录的在线入口。此次只更新网站程序，不附商品目录、开放数据库、图片缓存、库存或购买记录；新目录为空库，已有网站继续使用原数据卷。下载时请区分 `BoothNest-Web-…-source.zip` 与下方的 Windows 桌面包。
+
+以下桌面版说明和已有 `v1.1.0-beta.3` Release 保留。
+
 [![Windows checks](https://github.com/VoidCloudCloud/BoothNest/actions/workflows/ci.yml/badge.svg)](https://github.com/VoidCloudCloud/BoothNest/actions/workflows/ci.yml)
 [![License: GPL-3.0-only](https://img.shields.io/badge/license-GPL--3.0--only-blue.svg)](LICENSE)
 [![Windows 10 / 11 x64](https://img.shields.io/badge/platform-Windows%2010%20%2F%2011%20x64-0078D4)](#使用发布版)

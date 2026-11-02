@@ -1,0 +1,60 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
+import { once } from 'node:events';
+import os from 'node:os';
+import path from 'node:path';
+import { createApp } from '../server.mjs';
+import { PurchaseBridge } from '../lib/purchase-bridge.mjs';
+import { PurchaseStore } from '../lib/purchases.mjs';
+
+const origin = 'chrome-extension://' + 'a'.repeat(32), other = 'chrome-extension://' + 'b'.repeat(32);
+const purchase = ids => ({ type: 'vrcatalogue-booth-purchases', schemaVersion: 1, source: 'https://accounts.booth.pm/library', complete: true, pages: 1, products: ids.map(id => ({ id, title: 'Fixture ' + id, cookie: 'PRIVATE_COOKIE', downloadUrl: 'https://booth.pm/downloadables/PRIVATE_FILE' })) });
+const post = (body, headers = {}) => ({ method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify(body) });
+async function setup(t) {
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'booth-bridge-'));
+  const { server } = await createApp({ dataDir: dir }); server.listen(0, '127.0.0.1'); await once(server, 'listening');
+  t.after(async () => { await new Promise(resolve => { server.close(resolve); server.closeAllConnections(); }); await rm(dir, { recursive: true, force: true }); });
+  return { dir, base: `http://127.0.0.1:${server.address().port}` };
+}
+test('purchase extension pairing limits cross-origin access and preserves existing purchase records', async t => {
+  const { dir, base } = await setup(t);
+  const endpoint = suffix => base + '/api/purchases/bridge/' + suffix;
+  assert.equal((await fetch(endpoint('pairing-code'), post({}, { origin: 'https://booth.pm' }))).status, 403);
+  assert.equal((await fetch(endpoint('pair'), post({ code: 'bad' }, { origin: 'https://evil.example' }))).status, 403);
+  const pair = await (await fetch(endpoint('pairing-code'), post({}))).json();
+  const response = await fetch(endpoint('pair'), post({ code: pair.code }, { origin }));
+  assert.equal(response.status, 200); assert.equal(response.headers.get('access-control-allow-origin'), origin);
+  const { token } = await response.json(); assert.equal(token.length, 64);
+  assert.equal((await fetch(endpoint('pair'), post({ code: pair.code }, { origin }))).status, 403);
+  const headers = { origin, 'x-boothnest-purchase-token': token };
+  const preflight = await fetch(endpoint('import'), { method: 'OPTIONS', headers: { origin, 'access-control-request-method': 'POST', 'access-control-request-private-network': 'true' } });
+  assert.equal(preflight.status, 204); assert.equal(preflight.headers.get('access-control-allow-private-network'), 'true');
+  assert.equal((await fetch(endpoint('import'), post(purchase([501]), { origin }))).status, 401);
+  assert.equal((await fetch(endpoint('import'), post(purchase([501]), { ...headers, origin: other }))).status, 401);
+  assert.equal((await fetch(base + '/api/purchases/import', post(purchase([501]), headers))).status, 403);
+  assert.equal((await fetch(endpoint('import'), post(purchase([501]), headers))).status, 200);
+  assert.equal((await fetch(endpoint('import'), post(purchase([502]), headers))).status, 200);
+  const before = await readFile(path.join(dir, 'purchases.json'), 'utf8');
+  assert.deepEqual(JSON.parse(before).products.map(p => p.id), [501, 502]); assert.ok(!before.includes('PRIVATE'));
+  assert.equal((await fetch(endpoint('import'), post(purchase(['bad']), headers))).status, 400);
+  assert.equal(await readFile(path.join(dir, 'purchases.json'), 'utf8'), before);
+  const state = await (await fetch(endpoint('status'))).json(); assert.equal(state.intervalHours, 24); assert.equal(state.lastResult.total, 2);
+  assert.ok(!JSON.stringify(state).includes(token)); assert.ok(!(await readFile(path.join(dir, 'purchase-bridge.json'), 'utf8')).includes(token));
+  assert.equal((await fetch(endpoint('disconnect'), post({}))).status, 200);
+  assert.equal((await fetch(endpoint('poll'), post({}, headers))).status, 401);
+  assert.equal(await readFile(path.join(dir, 'purchases.json'), 'utf8'), before);
+});
+test('pairing codes expire, throttle guesses, persist tokens as hashes and preserve corrupt config', async t => {
+  const { dir } = await setup(t); const store = await new PurchaseStore(dir).load(); let now = 1000000;
+  let bridge = await new PurchaseBridge(dir, store, () => now).load();
+  const expired = bridge.issueCode(); now += 600001; await assert.rejects(bridge.pair(origin, expired.code));
+  const guesses = bridge.issueCode(); for (let i = 0; i < 5; i++) await assert.rejects(bridge.pair(origin, 'wrong'));
+  await assert.rejects(bridge.pair(origin, guesses.code));
+  const paired = await bridge.pair(origin, bridge.issueCode().code); const identity = bridge.authorize(origin, paired.token);
+  await Promise.all([bridge.configure({ enabled: false }), bridge.report({ phase: 'error', message: 'Sign in required' }, identity)]);
+  bridge = await new PurchaseBridge(dir, store).load(); assert.equal(bridge.authorize(origin, paired.token), identity); assert.equal(bridge.status().enabled, false); assert.equal(bridge.status().lastError, 'Sign in required');
+  const filename = path.join(dir, 'purchase-bridge.json'); await writeFile(filename, '{bad');
+  bridge = await new PurchaseBridge(dir, store).load(); assert.ok(bridge.status().error); await assert.rejects(bridge.configure({ enabled: true }));
+  assert.equal(await readFile(filename, 'utf8'), '{bad');
+});
