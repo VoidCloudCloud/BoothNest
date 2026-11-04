@@ -188,6 +188,103 @@ class ReleaseTests(unittest.TestCase):
         self.assertEqual(sum(i["size"] for i in result["items"]), 6)
         self.assertEqual(result["warnings"], [])
 
+    def test_two_archives_are_separate_from_category_or_parent_root(self):
+        category = self.root / "化身"
+        category.mkdir()
+        files = {"Alpha-1234567.zip": b"a" * 547, "Beta-7654321.zip": b"b" * 142}
+        for name, contents in files.items():
+            (category / name).write_bytes(contents)
+        direct = scan(str(category))["items"]
+        parent = scan(str(self.root))
+        expected = {"化身/" + item["folder"]: (item["size"], item["ids_strong"])
+                    for item in direct}
+        self.assertEqual({item["folder"]: (item["size"], item["ids_strong"])
+                          for item in parent["items"]}, expected)
+        self.assertEqual(parent["containers"], {"化身": 2})
+        self.assertEqual({name: (category / name).read_bytes() for name in files}, files)
+
+    def test_two_product_directories_are_not_merged(self):
+        for name, size in [("1234567 Alpha", 21), ("7654321 Beta", 88)]:
+            folder = self.root / "饰品" / name
+            folder.mkdir(parents=True)
+            (folder / "asset.unitypackage").write_bytes(b"x" * size)
+        items = scan(str(self.root))["items"]
+        self.assertEqual({item["folder"]: item["size"] for item in items},
+                         {"饰品/1234567 Alpha": 21, "饰品/7654321 Beta": 88})
+        self.assertTrue(all(item["is_dir"] for item in items))
+        self.assertEqual(sum(item["n_files"] for item in items), 2)
+
+    def test_two_product_container_expands_through_deeper_ancestors(self):
+        category = self.root / "整理完" / "素材" / "化身"
+        category.mkdir(parents=True)
+        for name in ["1234567.zip", "7654321.zip"]:
+            (category / name).write_bytes(b"abc")
+        items = scan(str(self.root))["items"]
+        self.assertEqual({item["folder"] for item in items},
+                         {"整理完/素材/化身/1234567.zip", "整理完/素材/化身/7654321.zip"})
+        self.assertEqual(sum(item["size"] for item in items), 6)
+
+    def test_same_product_id_across_files_stays_one_download(self):
+        package = self.root / "Product"
+        package.mkdir()
+        for name in ["Alpha-1234567.zip", "Alpha-1234567.fbx", "Alpha-1234567.txt"]:
+            (package / name).write_bytes(b"abc")
+        result = scan(str(self.root))
+        self.assertEqual(result["containers"], {})
+        self.assertEqual([(item["folder"], item["size"], item["n_files"])
+                          for item in result["items"]], [("Product", 9, 3)])
+
+    def test_single_child_with_multiple_ids_does_not_split_package(self):
+        package = self.root / "Product"
+        package.mkdir()
+        (package / "Alpha-1234567-for-7654321-2345678.zip").write_bytes(b"abc")
+        result = scan(str(self.root))
+        self.assertEqual(result["containers"], {})
+        self.assertEqual([item["folder"] for item in result["items"]], ["Product"])
+
+    def test_shared_product_id_with_avatar_references_stays_one_download(self):
+        package = self.root / "Product"
+        package.mkdir()
+        for name in ["1234567-main.zip", "1234567-for-7654321.zip", "1234567-for-2345678.zip"]:
+            (package / name).write_bytes(b"abc")
+        result = scan(str(self.root))
+        self.assertEqual(result["containers"], {})
+        self.assertEqual([(item["folder"], item["size"]) for item in result["items"]],
+                         [("Product", 9)])
+
+    def test_three_product_container_preserves_all_bytes_and_loose_files(self):
+        category = self.root / "Category"
+        category.mkdir()
+        for name in ["1234567.zip", "7654321.zip", "2345678.zip", "readme.txt"]:
+            (category / name).write_bytes(b"abc")
+        result = scan(str(self.root))
+        self.assertEqual(result["containers"], {"Category": 3})
+        self.assertEqual(len(result["items"]), 4)
+        self.assertEqual(sum(item["size"] for item in result["items"]), 12)
+        self.assertEqual(sum(item["n_files"] for item in result["items"]), 4)
+
+    def test_nested_products_keep_separate_ids_and_sizes_through_pipeline(self):
+        category = self.root / "化身"
+        category.mkdir()
+        for product_id, title, size in [("1234567", "Alpha", 547), ("7654321", "Beta", 142)]:
+            with zipfile.ZipFile(category / (product_id + ".zip"), "w") as archive:
+                archive.writestr("readme.txt", b"x" * size)
+            self.api.client._write_json(self.cfg.item_file(product_id),
+                                        {"id": int(product_id), "name": title})
+        expected = {str(path.stem): path.stat().st_size for path in category.iterdir()}
+        before = {path.name: path.read_bytes() for path in category.iterdir()}
+        pipe = Pipeline(self.cfg, self.api.client)
+        dataset = pipe.run(offline=True)
+        self.assertEqual(dataset["totProds"], 2)
+        self.assertEqual({product["id"]: product["local_bytes"] for product in dataset["products"]},
+                         expected)
+        self.assertEqual({item["product_id"] for item in dataset["items"]}, set(expected))
+        self.assertEqual(dataset["totBytes"], sum(expected.values()))
+        self.assertEqual({path.name: path.read_bytes() for path in category.iterdir()}, before)
+        # Incremental refresh must rebuild the units instead of retaining the old merged category.
+        again = pipe.run(offline=True, use_cache=True)
+        self.assertEqual(again["products"], dataset["products"])
+
     def test_scan_reports_permission_errors(self):
         bad = self.root / "denied"
         bad.mkdir()

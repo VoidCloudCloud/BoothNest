@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, readFile, rename, rm } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { once } from 'node:events';
@@ -58,6 +58,28 @@ test('scheduled incremental scans trigger when due, persist settings and reject 
   const inventory = await readFile(path.join(f.home, 'data', 'dataset.json'));
   await assert.rejects(f.scan.start({ root: path.join(f.dir, 'missing') })); assert.deepEqual(await readFile(path.join(f.home, 'data', 'dataset.json')), inventory);
 });
+test('two nested products keep their identities and byte totals when scanning their parent directory (issue #1)', async t => {
+  const f = await fixture(t), category = path.join(f.root, '化身');
+  await mkdir(category);
+  const alpha = path.join(category, 'Alpha-1234567.zip'), beta = path.join(category, 'Beta-7654321.zip');
+  await rename(path.join(f.root, 'Hair-1234567.zip'), alpha);
+  await rm(path.join(f.root, 'unknown.txt'));
+  await exec(python, ['-c', 'import sys,zipfile; z=zipfile.ZipFile(sys.argv[1],"w"); z.writestr("asset/readme.txt","beta synthetic"*20); z.close()', beta]);
+  const originals = new Map([[alpha, await readFile(alpha)], [beta, await readFile(beta)]]);
+  await f.scan.start({ root: category, offline: true }); await completed(f.scan);
+  const direct = JSON.parse(await readFile(path.join(f.home, 'data', 'dataset.json'), 'utf8'));
+  await f.scan.start({ root: f.root, offline: true }); await completed(f.scan);
+  const parent = JSON.parse(await readFile(path.join(f.home, 'data', 'dataset.json'), 'utf8'));
+  const totals = dataset => dataset.products.map(product => [product.id, product.local_bytes]).sort();
+  assert.deepEqual(totals(parent), totals(direct));
+  assert.deepEqual(totals(parent), [['1234567', originals.get(alpha).length], ['7654321', originals.get(beta).length]]);
+  assert.equal(parent.totProds, 2); assert.equal(parent.totItems, 2);
+  assert.deepEqual(parent.items.map(item => item.folder).sort(), ['化身/Alpha-1234567.zip', '化身/Beta-7654321.zip']);
+  const items = await (await fetch(f.base + '/api/items?view=local&adult=all')).json();
+  assert.equal(items.count, 2); assert.deepEqual(items.items.map(item => item.id).sort(), [1234567, 7654321]);
+  for (const [file, bytes] of originals) assert.deepEqual(await readFile(file), bytes);
+});
+
 test('classic management retains all original API capabilities with authenticated same-origin calls and complete exports', async t => {
   const f = await fixture(t); await f.scan.start(); await completed(f.scan);
   const html = await (await fetch(f.base + '/classic')).text(); const token = /name="booth-session" content="([^"]+)"/.exec(html)[1];

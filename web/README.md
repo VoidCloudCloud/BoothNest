@@ -1,12 +1,12 @@
 # BoothNest 基础网站
 
-版本 `2.0.0-beta.6`，源码采用 GPL-3.0-only。提供浏览器图形界面，包含本机网站和带登录的在线入口。
+版本 `2.0.0-beta.7`，源码采用 GPL-3.0-only。提供浏览器图形界面，包含本机网站和带登录的在线入口。
 
 ## 下载与 GUI
 
-- [下载网站源码 ZIP](https://github.com/VoidCloudCloud/BoothNest/releases/download/web-v2.0.0-beta.6/BoothNest-Web-2.0.0-beta.6-source.zip)；[发布说明、SHA-256 与逐文件清单](https://github.com/VoidCloudCloud/BoothNest/releases/tag/web-v2.0.0-beta.6)。
+- [下载网站源码 ZIP](https://github.com/VoidCloudCloud/BoothNest/releases/download/web-v2.0.0-beta.7/BoothNest-Web-2.0.0-beta.7-source.zip)；[发布说明、SHA-256 与逐文件清单](https://github.com/VoidCloudCloud/BoothNest/releases/tag/web-v2.0.0-beta.7)。
 - 网站源码包需要 Node.js；扫描和经典管理另需 Python。Windows 的 `Start.cmd` 只是启动脚本，需要先安装运行环境，启动后手动打开下方地址。
-- 本版本未提供新版免运行环境 EXE。需要解压后双击即用的 Windows 包，可选择[原桌面版 Beta 3](https://github.com/VoidCloudCloud/BoothNest/releases/tag/v1.1.0-beta.3)，其界面和功能对应桌面旧版。
+- 本版本未提供新版免运行环境 EXE。需要解压后双击即用的 Windows 包，可选择[Windows 桌面版 Beta 4](https://github.com/VoidCloudCloud/BoothNest/releases/tag/v1.1.0-beta.4)，提供桌面界面，并已修复多层目录识别问题。
 - fnOS / Docker 用户按下方部署步骤操作。已部署好的网站，访问者只需要浏览器。
 
 包含浏览、搜索与筛选、收藏、商品详情、目录导入导出、现有库存读取和管理，以及带登录验证的在线入口。**发行包不附商品目录、VRCatalogue 数据库、图片缓存、库存、购买记录或账户配置。新数据目录首次启动为空，也不会自动下载一套数据。**

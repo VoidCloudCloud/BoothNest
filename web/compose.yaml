@@ -1,7 +1,7 @@
 services:
   boothnest:
     build: .
-    image: boothnest-web:2.0.0-beta.6
+    image: boothnest-web:2.0.0-beta.7
     restart: unless-stopped
     ports:
       - "${BOOTH_NEST_BIND:-127.0.0.1}:8010:8010"

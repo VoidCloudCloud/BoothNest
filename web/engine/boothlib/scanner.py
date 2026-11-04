@@ -3,9 +3,9 @@
 
 扫描（scan）：
   - 每个顶层条目 = 一个「下载条目」
-  - **容器感知**：若某目录的直接子项里含 >=3 个**互不相同**的 7 位 BOOTH ID，
-    说明它是个收纳盒（如 apps/极空间 里躺着上百件商品），改为展开其子项。
-    必须去重：单商品文件夹里每个文件都重复写着同一个 ID，去重后只有 1 个。
+  - **容器感知**：至少两个直接子项含有 7 位 BOOTH ID，且这些子项没有共同的
+    商品 ID 时，将目录视为收纳盒并展开；两个商品也不能被合并成一个下载条目。
+    单个文件里的多个 ID，以及多个文件重复同一商品 ID，不作为收纳盒证据。
 
 探测（probe）：
   - .zip        → 中央目录清单（极快）
@@ -29,7 +29,7 @@ from . import fsutil as FS
 
 ID7 = re.compile(r"(?<!\d)(\d{7})(?!\d)")
 ID6 = re.compile(r"(?<!\d)(\d{6})(?!\d)")
-CONTAINER_MIN = 3
+CONTAINER_MIN = 2
 MAXDEPTH = None
 
 INTEREST = re.compile(
@@ -123,13 +123,17 @@ def scan(root: str, cancel=None, maxdepth=None) -> dict:
     _walk(base, "", 1, acc, maxdepth, warnings, cancel)
     by_rel = {e["rel"]: e for e in acc}
     children = collections.defaultdict(list)
-    direct_ids = collections.defaultdict(set)
+    direct_ids = collections.defaultdict(list)
     for e in acc:
         parent = e["rel"].rpartition("/")[0]
         children[parent].append(e["rel"])
-        direct_ids[parent].update(ID7.findall(e["name"]))
-    containers = {rel: len(ids) for rel, ids in direct_ids.items()
-                  if rel and len(ids) >= CONTAINER_MIN}
+        ids = set(ID7.findall(e["name"]))
+        if ids:
+            direct_ids[parent].append(ids)
+    # Count evidence from separate children, not several IDs inside one filename.
+    # A shared ID denotes variants/support files of one product, not a category.
+    containers = {rel: len(set.union(*groups)) for rel, groups in direct_ids.items()
+                  if rel and len(groups) >= CONTAINER_MIN and not set.intersection(*groups)}
     # Track descendant containers once instead of rescanning the inventory per directory.
     has_container = set(containers)
     for rel in containers:
