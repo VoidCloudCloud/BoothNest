@@ -1,24 +1,49 @@
-# BoothNest Desktop
+# BoothNest
 
-**基础网站新版：** [BoothNest Web 2.0.0-beta.5](web/README.md) 已提供独立网站源码，包含本机和带登录的在线入口。此次只更新网站程序，不附商品目录、开放数据库、图片缓存、库存或购买记录；新目录为空库，已有网站继续使用原数据卷。下载时请区分 `BoothNest-Web-…-source.zip` 与下方的 Windows 桌面包。
+通过图形界面浏览、搜索和管理自己的 BOOTH 下载库，提供新版网站和 Windows 桌面版。新版网站可在本机运行，也可部署到 fnOS / Docker 后通过浏览器访问。
 
-以下桌面版说明和已有 `v1.1.0-beta.3` Release 保留。
-
+[![Website checks](https://github.com/VoidCloudCloud/BoothNest/actions/workflows/website.yml/badge.svg)](https://github.com/VoidCloudCloud/BoothNest/actions/workflows/website.yml)
 [![Windows checks](https://github.com/VoidCloudCloud/BoothNest/actions/workflows/ci.yml/badge.svg)](https://github.com/VoidCloudCloud/BoothNest/actions/workflows/ci.yml)
 [![License: GPL-3.0-only](https://img.shields.io/badge/license-GPL--3.0--only-blue.svg)](LICENSE)
-[![Windows 10 / 11 x64](https://img.shields.io/badge/platform-Windows%2010%20%2F%2011%20x64-0078D4)](#使用发布版)
+
+## 下载哪个版本
+
+**两个版本都有 GUI。** 网站版在浏览器中操作；Windows 桌面版用 Edge / Chrome 显示独立应用窗口。
+
+| 版本 | 下载与启动 | 运行要求 | 适合谁 |
+| --- | --- | --- | --- |
+| **新版网站 Web 2.0.0 Beta 6** | [下载网站源码 ZIP](https://github.com/VoidCloudCloud/BoothNest/releases/download/web-v2.0.0-beta.6/BoothNest-Web-2.0.0-beta.6-source.zip)，解压后运行 `Start.cmd` 或 `node server.mjs`，打开 `http://127.0.0.1:4317` | Node.js 22.13+；扫描与经典管理另需 Python 3.12+。Docker 部署会构建运行环境 | 想用新版界面、本机网站或 fnOS 自托管 |
+| **Windows 桌面版 1.1.0 Beta 3** | [下载 Windows x64 ZIP](https://github.com/VoidCloudCloud/BoothNest/releases/download/v1.1.0-beta.3/BoothNest-1.1.0b3-windows-x64.zip)，完整解压后双击 `BoothNest.exe` | Windows 10 / 11 x64，Edge 或 Chrome；无需安装 Python / Node.js | 希望下载、解压后直接使用 |
+
+**新版网站目前发布的是源码包，未提供新版免运行环境 EXE 或安装包。** `Start.cmd` 需要已安装的 Node.js，不会自动安装运行环境或打开浏览器。旧桌面 EXE 仍是 Beta 3 的界面，不会因下载新版网站源码而升级。
+
+[网站发布说明与校验文件](https://github.com/VoidCloudCloud/BoothNest/releases/tag/web-v2.0.0-beta.6) · [网站运行 / Docker 部署](web/README.md) · [旧数据兼容与升级](web/docs/UPGRADING.md) · [问题反馈](https://github.com/VoidCloudCloud/BoothNest/issues/new/choose)
+
+## 新版网站的界面与数据
+
+网站提供商品浏览、搜索筛选、收藏、详情、本地库存关联和经典管理页；支持桌面和手机浏览器。在线模式通过登录访问，服务器上的目录选择、文件管理器动作及桌面扩展配对不可用。
+
+下图为新版网站首次启动的空库界面，不包含商品素材或个人数据。
+
+![BoothNest 新版网站：空库、搜索筛选与本地库存入口](docs/images/website-empty.png)
+
+发行包只含程序，**不附商品目录、VRCatalogue 数据库、图片缓存、库存、购买记录或账户配置**。全新安装从空库开始；已有网站保留原数据卷、配置和挂载即可更新程序。已启用的自动扫描或同步会继续按原配置运行。
+
+兼容现有 BoothNest 网站目录，以及 BoothNest / BoothShelf 的 `data/dataset.json` 库存快照；支持旧 `bytes` 和现有 `size` 字段。桌面版库存与网站的收藏、已购记录分属不同文件，不能互相替代。具体路径、迁移步骤和验证范围见[升级说明](web/docs/UPGRADING.md)。
+
+## Windows 桌面版 1.1.0 Beta 3
 
 在本地浏览、识别和统计已经下载的 BOOTH 商品。面向 Windows 的桌面工具，通过系统 Edge / Chrome 显示界面；无需登录 BOOTH，也不需要安装 Python 才能使用发布版。
 
 **A local, read-only BOOTH download catalog for Windows.** Browse your downloads, correct product matches, find identical files and export reports. No BOOTH login or cloud account required.
 
-当前版本：**1.1.0 Beta 3**。这是公开测试候选版；跨机器安装和真实网络环境仍需要用户反馈。
+桌面版本：**1.1.0 Beta 3**。这是公开测试候选版；以下功能、截图和 EXE 安装说明对应此桌面版。
 
 [下载公开测试版](https://github.com/VoidCloudCloud/BoothNest/releases/tag/v1.1.0-beta.3) · [更新记录](CHANGELOG.md) · [问题反馈](https://github.com/VoidCloudCloud/BoothNest/issues/new/choose) · [参与贡献](CONTRIBUTING.md)
 
 ## 使用发布版
 
-1. 打开 [Releases](https://github.com/VoidCloudCloud/BoothNest/releases)，下载 `BoothNest-版本-windows-x64.zip`，完整解压。标注 **Pre-release** 的版本为公开测试版。
+1. 打开[桌面版 Release](https://github.com/VoidCloudCloud/BoothNest/releases/tag/v1.1.0-beta.3)，下载 `BoothNest-1.1.0b3-windows-x64.zip`，完整解压。标注 **Pre-release** 的版本为公开测试版。
 2. 双击 `BoothNest.exe`；需要桌面快捷方式时运行 `install.cmd`。安装位置是 `%LOCALAPPDATA%\Programs\BoothNest`，无需管理员权限。
 3. 首次启动不会导入任何人的商品库。点「浏览…」选择自己的下载目录，再点「刷新数据」。
 4. 如果不希望联网，在「设置与说明」中先启用「离线模式」。没有元数据缓存时，离线扫描只能识别文件名中的商品 ID，不能在线补全名称与图片。
