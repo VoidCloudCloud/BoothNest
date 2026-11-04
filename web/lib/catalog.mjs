@@ -77,17 +77,18 @@ export function boothId(value) {
   } catch { return null; }
 }
 
-function categoryFallback(item) {
+function listingCategory(item) {
   const name = fold(item.category);
   if (/hair|发型|髪型/.test(name)) return 'hair';
   if (/clothing|shoes|服装|衣装|鞋靴/.test(name)) return 'clothing';
-  if (/character|avatar|角色|キャラクター|アバター/.test(name)) return '3d-characters';
   if (/accessor|饰品|配饰|アクセサリー/.test(name)) return 'avatar-accessories';
   if (/texture|shader|material|贴图|材质|テクスチャ/.test(name)) return 'avatar-textures-materials-and-shaders';
   if (/motion|animation|动作|动画/.test(name)) return 'avatar-animations-physbones-gestures-and-gimmicks';
   if (/world|environment|场景|世界/.test(name)) return 'world';
   if (/tool|software|工具|系统/.test(name)) return 'avatar-systems-and-tools';
-  return 'avatar-props';
+  if (/prop|toy|道具|小物/.test(name)) return 'avatar-props';
+  if (/character|avatar|角色|キャラクター|アバター/.test(name)) return '3d-characters';
+  return null;
 }
 
 export function normalizeItem(raw, categories = []) {
@@ -97,16 +98,29 @@ export function normalizeItem(raw, categories = []) {
   const bio = text(raw.bio, 60000);
   const tags = array(raw.tags).map(tag => text(typeof tag === 'string' ? tag : tag?.name, 120)).filter(Boolean).slice(0, 150);
   const smart = array(raw.smart_categories).length ? raw.smart_categories : raw.smart_category ? [raw.smart_category] : [];
+  const listing = listingCategory(raw);
+  const compatibilityTitle = /\d+\s*(?:avatars?|アバター|아바타)|(?:複数|多款|多个|多模型|multi)[\s-]*(?:avatars?|アバター|模型)/.test(fold(title));
   const categorySlugs = [], subcategories = [];
+  let rejectedAvatar = false;
   for (const entry of [...smart].sort((a, b) => Number(b.is_primary === true) - Number(a.is_primary === true))) {
     const parent = categories.find(cat => entry.category_slug ? cat.slug === entry.category_slug : entry.category_id ? cat.id === entry.category_id : fold(cat.en) === fold(entry.category));
     if (!parent) continue;
+    // Compatibility and secondary avatar tags describe an add-on, not its base.
+    // A specific BOOTH/local category takes precedence over an inferred avatar tag.
+    if (parent.slug === '3d-characters' && ((listing && listing !== parent.slug) ||
+      (!listing && (compatibilityTitle || categorySlugs.length > 0)))) {
+      rejectedAvatar = true;
+      continue;
+    }
     categorySlugs.push(parent.slug);
     const children = array(parent.children).filter(child => entry.subcategory_slug ? child.slug === entry.subcategory_slug : entry.subcategory_id ? child.id === entry.subcategory_id : fold(child.en) === fold(entry.sub_category) && (!entry.group_en || child.group_en === entry.group_en));
     const child = children.length === 1 ? children[0] : null;
     if (child) subcategories.push(child.slug);
   }
-  if (!categorySlugs.length) categorySlugs.push(categoryFallback(raw));
+  if (listing && rejectedAvatar) categorySlugs.unshift(listing);
+  // With only an unsubstantiated avatar tag, leave the category unknown until refreshed.
+  if (!categorySlugs.length && !rejectedAvatar) categorySlugs.push(listing || 'avatar-props');
+  const primaryCategory = categories.find(cat => cat.slug === categorySlugs[0]);
   const linkedAvatars = array(raw.linked_avatars).slice(0, 500).map(avatar => ({
     slug: text(avatar.slug, 100), en: text(avatar.en, 100), ja: text(avatar.ja, 100),
     ko: text(avatar.ko, 100), image: safeImage(avatar.image_url),
@@ -142,7 +156,8 @@ export function normalizeItem(raw, categories = []) {
     media: array(raw.media).map(safeImage).filter(Boolean).slice(0, 100), tags, avatars, avatarMentions, unifiedTags,
     openData: raw._open_data ? { ...raw._open_data } : null,
     categorySlugs: [...new Set(categorySlugs)], subcategories: [...new Set(subcategories)], features,
-    category: text(smart[0]?.category || raw.category), categoryJa: text(smart[0]?.category_ja),
+    category: text(primaryCategory?.en || (!rejectedAvatar && smart[0]?.category) || raw.category),
+    categoryJa: text(primaryCategory?.ja || (!rejectedAvatar && smart[0]?.category_ja)),
     rating: raw.is_adult || fold(raw.content_rating) === 'nsfw' ? 'adult' : /suggestive/i.test(raw.content_rating ?? '') ? 'suggestive' : 'safe',
     publishedAt: Number.isFinite(published.getTime()) ? published.toISOString() : null,
     updatedAt: text(raw.updated_at || raw.scraped_at, 100), source: text(raw.source, 100),

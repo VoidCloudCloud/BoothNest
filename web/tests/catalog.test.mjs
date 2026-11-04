@@ -41,6 +41,51 @@ test('free, adult, avatar and favourites views do not leak unrelated records', (
   assert.deepEqual(search('view=favourites&ids=101,103').items.map(item => item.id).sort(), [101, 103]);
 });
 
+test('listing categories keep misclassified clothing and tools out of avatar views and facets', () => {
+  const tree = [...categories.filter(cat => cat.slug !== '3d-characters'),
+    { slug: '3d-characters', en: '3D Characters', children: [{ slug: 'characters--humanoid', en: 'Humanoid' }] }];
+  const mistaken = { category: '3D Characters', sub_category: 'Humanoid', is_primary: true };
+  const items = [
+    { id: 201, title: 'ASTRO WATCHCAT【21アバター対応】', category: '3D Clothing', smart_category: mistaken },
+    { id: 202, title: 'Local outfit', category: '3D服装', smart_categories: [mistaken, { category: 'Hair', sub_category: 'Long' }] },
+    { id: 203, title: 'Avatar face tracking tool', category: 'Avatar Tools', smart_categories: [mistaken] },
+    { id: 204, title: 'Character with bundled clothing', category: '3D Characters', smart_categories: [mistaken, { category: 'Clothing' }] },
+  ].map(item => normalizeItem({ ...item, linked_avatars: [avatar('mayo', 'Mayo', 'まよ')] }, tree));
+  assert.deepEqual(items[0].categorySlugs, ['clothing']);
+  assert.deepEqual(items[0].subcategories, []);
+  assert.equal(items[0].category, 'Clothing');
+  assert.deepEqual(items[1].categorySlugs, ['clothing', 'hair']);
+  assert.deepEqual(items[1].subcategories, ['hair--long']);
+  assert.deepEqual(items[2].categorySlugs, ['avatar-systems-and-tools']);
+  assert.deepEqual(items[3].categorySlugs, ['3d-characters', 'clothing']);
+  const find = query => searchCatalog(items, tree, new URLSearchParams(query));
+  for (const query of ['view=avatars', 'category=3d-characters', 'category=characters--humanoid']) {
+    assert.deepEqual(find(query).items.map(item => item.id), [204]);
+  }
+  assert.equal(find('').facets.categories.find(cat => cat.slug === '3d-characters').count, 1);
+  assert.deepEqual(find('category=clothing&avatar=mayo').items.map(item => item.id).sort(), [201, 202, 204]);
+});
+
+test('avatar compatibility titles and secondary tags do not establish a full avatar', () => {
+  const mistaken = { category: '3D Characters' };
+  const inputs = [
+    { id: 211, title: '【22avatars】Full pack', smart_category: mistaken },
+    { id: 212, title: 'VESPERA（複数17アバター対応）', smart_category: mistaken },
+    { id: 213, title: 'Tool mentioning avatars', smart_categories: [{ category: 'Hair', sub_category: 'Long', is_primary: true }, mistaken] },
+    { id: 214, title: '【2 Avatars】Original characters', category: '3D Characters', smart_category: mistaken },
+    { id: 215, title: 'Original character', category: '3D Models (Other)', smart_category: mistaken },
+    { id: 217, title: 'Body Stockings', category: '3D Characters', smart_category: { category: 'Clothing' } },
+  ];
+  const items = inputs.map(item => normalizeItem(item, categories));
+  assert.deepEqual(items[0].categorySlugs, []);
+  assert.equal(items[0].category, '');
+  assert.deepEqual(items[1].categorySlugs, []);
+  assert.deepEqual(items[2].categorySlugs, ['hair']);
+  assert.deepEqual(items[5].categorySlugs, ['clothing']);
+  assert.deepEqual(searchCatalog(items, categories, new URLSearchParams('view=avatars')).items.map(item => item.id).sort(), [214, 215]);
+  assert.deepEqual(normalizeItem({ id: 216, title: 'Avatar accessories', category: 'Avatar Accessories' }).categorySlugs, ['avatar-accessories']);
+});
+
 test('sorting, page clamping and facets reflect the actual catalogue', () => {
   assert.deepEqual(search('sort=price-asc').items.map(item => item.price), [0, 300, 500, 5500]);
   assert.equal(search('sort=newest').items[0].id, 102);
