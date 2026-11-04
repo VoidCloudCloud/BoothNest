@@ -36,6 +36,7 @@ export async function createOnlineApp(options = {}) {
       if (req.headers.origin && !['http://' + host, 'https://' + host].includes(req.headers.origin)) return reply(res, 403, { error: '请求来源无效。' });
       if (req.headers['sec-fetch-site'] === 'cross-site') return reply(res, 403, { error: '请求来源无效。' });
       if (req.method === 'GET' && url.pathname === '/api/server/session') return reply(res, 200, { enabled: true, version, root: process.env.BOOTH_NEST_DOWNLOAD_ROOT || '/downloads' });
+      if (req.method === 'GET' && url.pathname === '/api/purchases/bridge/status') return reply(res, 200, { supported: false, enabled: false, paired: false, phase: 'unavailable', lastSyncAt: '', error: '' });
       if (unavailable.has(url.pathname) || url.pathname.startsWith('/api/purchases/bridge/')) return reply(res, 409, { ok: false, error: '请通过服务器管理下载目录；商品链接会在当前浏览器中打开。' });
       req.headers.host = 'localhost';
       if (req.headers.origin) req.headers.origin = 'http://localhost';

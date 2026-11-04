@@ -34,7 +34,7 @@ async function fixture(t, prepare = async () => {}) {
 
 test('website authenticates content and validates the external host and origin', async t => {
   const { request } = await fixture(t);
-  for (const route of ['/', '/app.js', '/online-client.js', '/api/items', '/api/export', '/classic']) {
+  for (const route of ['/', '/app.js', '/online-client.js', '/api/items', '/api/export', '/classic', '/api/purchases/bridge/status']) {
     assert.equal((await request(route, { authorized: false })).status, 401, route);
   }
   assert.equal((await request('/healthz', { authorized: false })).status, 200);
@@ -46,6 +46,9 @@ test('website authenticates content and validates the external host and origin',
   assert.equal((await request('/api/ping', { headers: { origin: 'https://website.test' } })).status, 200);
   assert.match((await request('/')).text, /online-client\.js/);
   assert.match((await request('/classic')).text, /nonce="[a-f0-9]+" src="\/online-client.js"/);
+  const extensionStatus = await request('/api/purchases/bridge/status');
+  assert.equal(extensionStatus.status, 200);
+  assert.deepEqual(JSON.parse(extensionStatus.text), { supported: false, enabled: false, paired: false, phase: 'unavailable', lastSyncAt: '', error: '' });
   for (const route of ['/api/scan/pick', '/api/open_path', '/api/shutdown', '/api/purchases/bridge/pair']) {
     assert.equal((await request(route, { method: 'POST' })).status, 409, route);
   }
