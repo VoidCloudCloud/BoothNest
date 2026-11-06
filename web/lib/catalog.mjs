@@ -57,6 +57,8 @@ function trendingScore(item, now) {
 
 export function safeImage(value) {
   if (typeof value !== 'string') return '';
+  if (/^\/media\/boothdex\/[a-f0-9]{40}\.webp$/.test(value)) return value;
+  if (/^\/media\/boothdex\/item\/[1-9]\d{0,9}\/\d{1,2}$/.test(value)) return value;
   if (/^\/media\/[a-f0-9]{32}\.(?:webp|png|jpe?g)$/.test(value)) return value;
   if (/^\/api\/local\/image\?key=[a-f0-9]{32}\.(?:webp|png|jpe?g)$/.test(value)) return value;
   try {
@@ -171,7 +173,7 @@ export function normalizeItem(raw, categories = []) {
   };
 }
 
-const values = (params, key) => [...new Set(params.getAll(key).flatMap(value => value.split(',')).filter(Boolean))].slice(0, 100);
+const values = (params, key, limit = 100) => [...new Set(params.getAll(key).flatMap(value => value.split(',')).filter(Boolean))].slice(0, limit);
 const hasAny = (selected, actual) => !selected.length || selected.some(value => actual.includes(value));
 
 export function publicRecord({ _search, _tagTokens, _facetTags, ...item }) { return item; }
@@ -180,7 +182,10 @@ export function searchCatalog(records, categories, params = new URLSearchParams(
   const view = params.get('view') || 'items';
   const q = fold((params.get('q') || '').slice(0, 200)).trim().split(/\s+/).filter(Boolean);
   const selected = Object.fromEntries(['category', 'avatar', 'author', 'tag', 'feature', 'fileType', 'localCategory'].map(key => [key, values(params, key)]));
-  const ids = new Set(values(params, 'ids').map(Number));
+  const selectedTags = selected.tag.map(fold);
+  const excludedTags = values(params, 'excludeTag').map(fold);
+  const ids = new Set(values(params, 'ids', view === 'recent' ? 500 : 100).map(Number));
+  const recentOrder = new Map([...ids].map((id, index) => [id, index]));
   const adult = params.get('adult') || 'safe';
   const pmin = number(params.get('min'));
   const pmax = params.has('max') ? number(params.get('max'), Infinity) : Infinity;
@@ -191,7 +196,7 @@ export function searchCatalog(records, categories, params = new URLSearchParams(
   const purchase = params.get('purchase') || 'all';
   const includeMentions = params.get('includeMentions') === '1';
   const selectedAvatars = item => includeMentions ? [...item.avatars, ...array(item.avatarMentions)] : item.avatars;
-  function matches(item, omit = '') {
+  function matchesBase(item) {
     if ((view === 'purchased' || purchase === 'recorded' || purchase === 'missing-local') && !item.purchase.recorded) return false;
     if (purchase === 'not-recorded' && item.purchase.recorded) return false;
     if (purchase === 'missing-local' && !(item.local.known && item.local.copies === 0)) return false;
@@ -201,24 +206,44 @@ export function searchCatalog(records, categories, params = new URLSearchParams(
     if (availability === 'missing' && !(item.local.known && item.local.copies === 0)) return false;
     if (minBytes && !(item.local.known && item.local.copies > 0 && item.local.bytes >= minBytes)) return false;
     if (duplicates && !(item.local.known && item.local.copies > 1)) return false;
-    if (view === 'favourites' && !ids.has(item.id)) return false;
+    if ((view === 'favourites' || view === 'recent') && !ids.has(item.id)) return false;
     if (q.some(term => !item._search.includes(term))) return false;
     if ((adult === 'safe' && item.rating === 'adult') || (adult === 'suggestive' && item.rating !== 'suggestive') || (adult === 'adult' && item.rating !== 'adult')) return false;
     if (item.price < pmin || item.price > pmax || (free && (!item.priceKnown || item.price !== 0))) return false;
     if (!item.priceKnown && (pmin > 0 || Number.isFinite(pmax))) return false;
-    if (omit !== 'category' && !hasAny(selected.category, [...item.categorySlugs, ...item.subcategories])) return false;
-    if (omit !== 'avatar' && !hasAny(selected.avatar, selectedAvatars(item).map(avatar => avatar.slug))) return false;
-    if (omit !== 'author' && selected.author.length && !selected.author.includes(item.author)) return false;
-    if (omit !== 'tag' && selected.tag.some(tag => !array(item._tagTokens).includes(fold(tag)))) return false;
-    if (omit !== 'feature' && selected.feature.some(feature => !item.features.includes(feature))) return false;
-    if (omit !== 'fileType' && !hasAny(selected.fileType, array(item.local.types))) return false;
-    if (omit !== 'localCategory' && selected.localCategory.length && !(item.local.known && item.local.copies && selected.localCategory.includes(item.local.category))) return false;
     return true;
   }
-  const result = records.filter(item => matches(item));
-  const sort = params.get('sort') || 'trending';
+  const dimensions = [
+    { keys: item => [...item.categorySlugs, ...item.subcategories], matches: item => !selected.category.length || hasAny(selected.category, [...item.categorySlugs, ...item.subcategories]) },
+    { keys: item => selectedAvatars(item).map(avatar => avatar.slug), matches: item => !selected.avatar.length || hasAny(selected.avatar, selectedAvatars(item).map(avatar => avatar.slug)) },
+    { keys: item => [item.author], matches: item => !selected.author.length || selected.author.includes(item.author) },
+    { keys: item => item._facetTags || item.tags, matches: item => selectedTags.every(tag => array(item._tagTokens).includes(tag)) && !excludedTags.some(tag => array(item._tagTokens).includes(tag)) },
+    { keys: item => item.features, matches: item => selected.feature.every(feature => item.features.includes(feature)) },
+    { keys: item => item.local.copies ? array(item.local.types) : [], matches: item => hasAny(selected.fileType, array(item.local.types)) },
+    { keys: item => item.local.copies ? [item.local.category] : [], matches: item => !selected.localCategory.length || !!(item.local.known && item.local.copies && selected.localCategory.includes(item.local.category)) },
+  ];
+  const counts = dimensions.map(() => new Map()), result = [];
+  for (const item of records) {
+    if (!matchesBase(item)) continue;
+    let failed = -1, multipleFailures = false;
+    for (let index = 0; index < dimensions.length; index++) if (!dimensions[index].matches(item)) {
+      if (failed !== -1) { multipleFailures = true; break; }
+      failed = index;
+    }
+    if (multipleFailures) continue;
+    if (failed === -1) result.push(item);
+    // A facet omits only its own selection. A row failing two dimensions
+    // cannot contribute to any count; every other row needs just one pass.
+    for (let index = 0; index < dimensions.length; index++) {
+      if (failed !== -1 && failed !== index) continue;
+      for (const key of new Set(dimensions[index].keys(item))) counts[index].set(key, (counts[index].get(key) || 0) + 1);
+    }
+  }
+  const [catCounts, avatarCounts, authorCounts, tagCounts, featureCounts, typeCounts, localCategoryCounts] = counts;
+  const sort = view === 'recent' ? 'recent' : params.get('sort') || 'trending';
   const scores = new Map(result.map(item => [item.id, trendingScore(item, now)]));
   const comparators = {
+    recent: (a, b) => recentOrder.get(a.id) - recentOrder.get(b.id),
     trending: (a, b) => scores.get(b.id) - scores.get(a.id) || b.likes - a.likes || (Date.parse(b.publishedAt) || 0) - (Date.parse(a.publishedAt) || 0),
     newest: (a, b) => (Date.parse(b.publishedAt) || 0) - (Date.parse(a.publishedAt) || 0),
     oldest: (a, b) => (Date.parse(a.publishedAt) || 0) - (Date.parse(b.publishedAt) || 0),
@@ -234,18 +259,6 @@ export function searchCatalog(records, categories, params = new URLSearchParams(
   const pageSize = [20, 40, 60, 100].includes(Number(params.get('pageSize'))) ? Number(params.get('pageSize')) : 20;
   const totalPages = Math.max(1, Math.ceil(result.length / pageSize));
   const page = Math.min(totalPages, Math.max(1, Math.floor(number(params.get('page'), 1))));
-  const countMap = (omit, keys) => {
-    const map = new Map();
-    for (const item of records) if (matches(item, omit)) for (const key of new Set(keys(item))) map.set(key, (map.get(key) || 0) + 1);
-    return map;
-  };
-  const catCounts = countMap('category', item => [...item.categorySlugs, ...item.subcategories]);
-  const avatarCounts = countMap('avatar', item => selectedAvatars(item).map(avatar => avatar.slug));
-  const authorCounts = countMap('author', item => [item.author]);
-  const tagCounts = countMap('tag', item => item._facetTags || item.tags);
-  const featureCounts = countMap('feature', item => item.features);
-  const typeCounts = countMap('fileType', item => item.local.copies ? array(item.local.types) : []);
-  const localCategoryCounts = countMap('localCategory', item => item.local.copies ? [item.local.category] : []);
   const avatarMap = new Map(avatarDictionary.map(avatar => [avatar.slug, avatar]));
   for (const item of records) for (const avatar of [...item.avatars, ...array(item.avatarMentions)]) {
     const previous = avatarMap.get(avatar.slug);

@@ -16,6 +16,9 @@ import { ENGINE_METHODS } from './lib/engine-client.mjs';
 import { savePrivateJson } from './lib/local-curation.mjs';
 import { PurchaseBridge, purchaseExtensionOrigin } from './lib/purchase-bridge.mjs';
 import { purchaseExtensionArchive } from './lib/extension-archive.mjs';
+import { searchPalette } from './lib/discovery.mjs';
+import { validDiscoveryPreference } from './public/discovery-state.js';
+import { ImageSupplement } from './lib/image-supplement.mjs';
 
 const root = fileURLToPath(new URL('.', import.meta.url));
 const publicDir = path.join(root, 'public');
@@ -56,6 +59,7 @@ async function cacheImage(url, signal, mediaDir) {
 
 export async function createApp({ dataDir = process.env.BOOTH_NEST_WEB_HOME || path.join(root, 'data'), localCandidates, localReveal, syncDependencies = {}, localToolsDependencies = {}, scanDependencies = {}, engineHome = process.env.BOOTH_NEST_ENGINE_HOME, openDataFile = process.env.BOOTH_NEST_OPEN_DATA || path.join(root, 'resources', 'vrcatalogue.sqlite') } = {}) {
   const mediaDir = path.join(dataDir, 'media');
+  const imageSupplement = await new ImageSupplement(path.join(dataDir, 'image-supplement')).init();
   const openData = await new VRCatalogueIndex(openDataFile).init();
   const store = await new CatalogStore(dataDir, openData).load();
   const purchases = await new PurchaseStore(dataDir).load();
@@ -70,7 +74,7 @@ export async function createApp({ dataDir = process.env.BOOTH_NEST_WEB_HOME || p
   const sessionToken = process.env.BOOTH_NEST_DESKTOP_TOKEN || randomBytes(32).toString('hex');
   const desktop = { enabled: !!process.env.BOOTH_NEST_DESKTOP_TOKEN, lastHeartbeat: 0, closeHint: 0 };
   const preferenceFile = path.join(dataDir, 'web-preferences.json');
-  let preferences = {}, preferenceError = false;
+  let preferences = {}, preferenceError = false, preferenceQueue = Promise.resolve();
   try { preferences = JSON.parse(await readFile(preferenceFile, 'utf8')); } catch (error) { preferenceError = error.code !== 'ENOENT'; }
   const validPreferences = value => value && typeof value === 'object' && !Array.isArray(value) && Object.entries(value).every(([key, entry]) => {
     if (key === 'language') return ['zh','en'].includes(entry);
@@ -79,6 +83,7 @@ export async function createApp({ dataDir = process.env.BOOTH_NEST_WEB_HOME || p
     if (['compact','notice-dismissed'].includes(key)) return typeof entry === 'boolean';
     if (key === 'page-size') return [20,40,80].includes(entry);
     if (key === 'favourites') return Array.isArray(entry) && entry.length <= 50000 && entry.every(id => Number.isSafeInteger(id) && id > 0);
+    if (key === 'saved-searches' || key === 'recent-views') return validDiscoveryPreference(key, entry);
     return false;
   });
   if (!validPreferences(preferences)) { preferenceError = true; preferences = {}; }
@@ -87,6 +92,8 @@ export async function createApp({ dataDir = process.env.BOOTH_NEST_WEB_HOME || p
     const raw = purchases.joinedItems(await local.joinedItems(store.data.items), local.status().connected);
     if (joinedCache?.raw !== raw || joinedCache?.offline !== scan.offline) joinedCache = { raw, offline: scan.offline, records: raw.map(item => {
       if (scan.offline) item = { ...item, media: (item.media || []).filter(url => url.startsWith('/')), author_icon: item.author_icon?.startsWith('/') ? item.author_icon : '' };
+      item = imageSupplement.enrich(item, { offline: scan.offline });
+      if (scan.offline) item = { ...item, media: item.media.filter(url => url.startsWith('/')) };
       return normalizeItem(store.enrich(item), store.categories);
     }) };
     return joinedCache.records;
@@ -157,6 +164,8 @@ export async function createApp({ dataDir = process.env.BOOTH_NEST_WEB_HOME || p
         res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' }); return res.end(html);
       }
       if (req.method === 'GET' && url.pathname === '/api/ping') return json(res, 200, { ok: true });
+      if (req.method === 'GET' && url.pathname === '/api/image-supplement') return json(res, 200, imageSupplement.status());
+      if (await imageSupplement.serve(req, res, url.pathname)) return;
       if (req.method === 'GET' && url.pathname === '/api/open-data') { await joinedRecords(); return json(res, 200, openData.status()); }
       const classicMethod = url.pathname.slice('/api/'.length);
       if (req.method === 'POST' && url.pathname.startsWith('/api/') && ENGINE_METHODS.has(classicMethod)) {
@@ -186,7 +195,17 @@ export async function createApp({ dataDir = process.env.BOOTH_NEST_WEB_HOME || p
       if (req.method === 'POST' && url.pathname === '/api/preferences') {
         const body = await readJson(req);
         if (preferenceError || !validPreferences(body) || JSON.stringify(body).length > 1000000) return json(res, 400, { error: '界面设置无效或原文件无法读取，原设置已保留。' });
-        await savePrivateJson(preferenceFile, body); preferences = body; return json(res, 200, { ok: true });
+        const update = preferenceQueue.then(async () => {
+          const next = { ...preferences, ...body };
+          if (JSON.stringify(next).length > 1000000) throw Object.assign(new Error('界面设置超过大小限制。'), { status: 400 });
+          await savePrivateJson(preferenceFile, next); preferences = next;
+        });
+        preferenceQueue = update.catch(() => {});
+        await update; return json(res, 200, { ok: true });
+      }
+      if (req.method === 'GET' && url.pathname === '/api/palette') {
+        await local.refresh();
+        return json(res, 200, searchPalette(await joinedRecords(), store.categories, url.searchParams, store.avatars));
       }
       if (req.method === 'GET' && url.pathname === '/api/status') {
         await local.refresh();
@@ -337,7 +356,7 @@ export async function createApp({ dataDir = process.env.BOOTH_NEST_WEB_HOME || p
     }
   });
   server.keepAliveTimeout = 5000;
-  server.on('close', () => { sync.dispose(); localTools.dispose(); scan.dispose(); openData.close(); });
+  server.on('close', () => { sync.dispose(); localTools.dispose(); scan.dispose(); openData.close(); imageSupplement.close(); });
   return { server, store, local, purchases, sync, localTools, scan, openData };
 }
 

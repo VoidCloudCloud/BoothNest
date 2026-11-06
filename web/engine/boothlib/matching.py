@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import os
 import re
+import unicodedata
 
 # ---------------------------------------------------------------- 词典
 AVATARS = {
@@ -35,7 +36,7 @@ AVATARS = {
 # 通用词：留在 token 里没有区分度，只会制造假阳性
 STOP = {
     "psd", "material", "materials", "mat", "tex", "texture", "textures", "pack",
-    "materialpack", "texturepack", "fullset", "full", "set", "gimmick", "gimmicks",
+    "materialpack", "texturepack", "package", "fullset", "full", "set", "gimmick", "gimmicks",
     "prefab", "others", "other", "common", "readme", "read", "me", "ver", "version",
     "unitypackage", "zip", "rar", "for", "and", "the", "of", "data", "only",
     "import", "first", "please", "files", "file", "use", "howto", "instruction",
@@ -67,15 +68,31 @@ _ADAPT = re.compile(
 
 
 # ---------------------------------------------------------------- 文本工具
+_FILE_EXTENSIONS = {
+    ".zip", ".rar", ".7z", ".unitypackage", ".fbx", ".blend", ".obj",
+    ".png", ".jpg", ".jpeg", ".webp", ".psd", ".clip", ".txt", ".pdf",
+    ".stl", ".mp4", ".wav", ".mp3", ".exe", ".msi",
+}
+
+
+def _name_stem(name: str) -> str:
+    """Strip real file extensions, preserving dotted product/series names."""
+    value = unicodedata.normalize("NFKC", name or "")
+    stem, extension = os.path.splitext(value)
+    return stem if extension.lower() in _FILE_EXTENSIONS else value
+
+
 def norm_text(s: str) -> str:
     """归一化：小写，去掉标点/空白/下划线，保留所有 Unicode 字母数字。
 
     Unicode 感知是必须的：ASCII-only 会吞掉 Mòryu 的 ò、Rosée 的 é。
     """
-    return re.sub(r"[\W_]", "", (s or "").lower(), flags=re.UNICODE)
+    value = unicodedata.normalize("NFKC", s or "")
+    return re.sub(r"[\W_]", "", value.lower(), flags=re.UNICODE)
 
 
 def _camel_parts(w: str) -> list[str]:
+    w = unicodedata.normalize("NFKC", w)
     s = re.sub(r"(?<=[a-z])(?=[A-Z])", " ", w)
     s = re.sub(r"(?<=[A-Z])(?=[A-Z][a-z])", " ", s)
     s = re.sub(r"(?<=[A-Za-z])(?=\d)|(?<=\d)(?=[A-Za-z])", " ", s)
@@ -88,7 +105,7 @@ def words(s: str) -> set[str]:
     '衣装MessyClassmate' 若整体成一个词，'messy' 就永远匹配不上；
     所以拉丁串与 CJK 串分别抽取，且 camelCase 词额外产出 'messy'、'classmate'。
     """
-    s = s or ""
+    s = unicodedata.normalize("NFKC", s or "")
     raw = re.findall(rf"[{_LAT}]+|[{_CJK}]+", s, flags=re.IGNORECASE)
     out = {w.lower() for w in raw}
     for w in raw:                      # 在**原始大小写**上拆，先 lower 会抹掉边界
@@ -101,7 +118,7 @@ def words(s: str) -> set[str]:
 
 def tokens(name: str) -> list[str]:
     """把文件名切成有区分度的词元。"""
-    s = os.path.splitext(name)[0]
+    s = _name_stem(name)
     s = re.sub(r"(?<!\d)\d{7}(?!\d)", " ", s)
     s = _ADAPT.sub(" ", s)
     s = re.sub(r"[\[\]\(\)（）【】「」『』]", " ", s)
@@ -148,14 +165,14 @@ def raw_chunks(name: str) -> list[str]:
     剔除：STOP 词、含角色名的串（Milltina / forShinano）、数字过多的串。
     """
     an = _avatar_norms()
-    s = os.path.splitext(name)[0]
+    s = _name_stem(name)
     s = re.sub(r"(?<!\d)\d{7}(?!\d)", " ", s)
     s = _ADAPT.sub(" ", s)
     out = []
     # [^\W_] 而不是 \w：\w 含下划线，会把 'NFD_FuwawaPrim_MaterialPack' 整体
     # 吃成一个串，导致本该定案的 'FuwawaPrim' 丢失。
     for c in re.findall(r"[^\W\d_][^\W_]{3,}", s, flags=re.UNICODE):
-        if c.lower() in STOP:
+        if c.lower() in STOP or not tokens(c):
             continue
         if sum(ch.isdigit() for ch in c) > len(c) / 2:
             continue
@@ -166,6 +183,40 @@ def raw_chunks(name: str) -> list[str]:
             continue
         out.append(c)
     return list(dict.fromkeys(out))
+
+
+def search_queries(qtokens: list[str], chunks: list[str]) -> list[str]:
+    """Try compound names before broad words; deduplicate case variants."""
+    meaningful = [t for t in qtokens if len(norm_text(t)) >= 3
+                  and t not in {"collection", "package"}]
+    ordered = sorted(meaningful, key=len, reverse=True)
+    queries = []
+    if 2 <= len(ordered) <= 3:
+        queries.append(" ".join(ordered))
+    if len(ordered) >= 2:
+        queries.append(" ".join(ordered[:2]))
+    queries.extend(c for c in sorted(chunks, key=len, reverse=True)
+                   if len(norm_text(c)) >= 5 and tokens(c)
+                   and norm_text(c) != "collection")
+    queries.extend(t for t in ordered if len(norm_text(t)) >= 4)
+    unique = {}
+    for query in queries:
+        key = " ".join(unicodedata.normalize("NFKC", query).casefold().split())
+        unique.setdefault(key, query)
+    return list(unique.values())[:6]
+
+
+def best_match(matches: list[dict]) -> dict | None:
+    """Short exact names need a unique winner, or independent shop evidence."""
+    if not matches:
+        return None
+    ranked = sorted(matches, key=lambda match: match["score"], reverse=True)
+    best = ranked[0]
+    if best.get("exact_name") and any(
+            other["id"] != best["id"] and other["score"] >= best["score"]
+            for other in ranked[1:]):
+        return None
+    return best
 
 
 # ---------------------------------------------------------------- 判据
@@ -288,18 +339,25 @@ def evaluate(qtokens: list[str], title: str, shop_name: str = "",
 
     dec = any(chunk_decisive(c, title) for c in chunks)
     ch_ok = any(chunk_hit(c, title) for c in chunks)
+    # Two short words (Yoi_Koi, Wing Veil) are useful together. Accept only
+    # the complete title core, never a partial name or a fuzzy coincidence.
+    exact_name = bool(len(set(qtokens)) >= 2 and title_exact == 1.0
+                      and not fuzzy and set(tokens(title)) == set(qtokens))
 
     accept = bool(
         dec
+        or exact_name
         or (title_cov >= 0.75 and strong and longest_ok)
         or (title_exact >= 0.5 and strong and independent_shop and longest_ok)
     )
     score = (title_cov * 2 + (0.6 if shop_hit else 0) + (0.3 if strong else 0)
-             + (1.2 if dec else (0.4 if ch_ok else 0)) - (0.15 if fuzzy else 0))
+             + (1.2 if dec else (0.4 if ch_ok else 0))
+             + (0.4 if exact_name else 0) - (0.15 if fuzzy else 0))
     return {"accept": accept, "title_cov": round(title_cov, 4),
             "title_exact": round(title_exact, 4), "shop_hit": shop_hit,
             "independent_shop": independent_shop, "strong": strong,
-            "fuzzy": fuzzy, "decisive": dec, "score": round(score, 4)}
+            "fuzzy": fuzzy, "decisive": dec, "exact_name": exact_name,
+            "score": round(score, 4)}
 
 
 def shop_cross_roots(asset_roots: list[str], shop_name: str,

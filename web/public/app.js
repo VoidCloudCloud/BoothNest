@@ -3,6 +3,8 @@ import { initLocalTools } from './local-tools.js';
 import { initLocalScan } from './local-scan.js';
 import { initPurchaseSync } from './purchase-sync.js';
 import { subcategoryLabel } from './category-labels.js';
+import { initDiscovery } from './discovery.js';
+import { savedFilterQuery } from './discovery-state.js';
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
 const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
@@ -30,6 +32,7 @@ const icons = {
   plus: '<path d="M12 4v16M4 12h16"/>',
   box: '<path d="m12 2 9 5v10l-9 5-9-5V7Zm0 10v10M3 7l9 5 9-5M7.5 4.5l9 5"/>',
   check: '<path d="m5 12 4 4L19 6"/>',
+  history: '<path d="M3 11a9 9 0 1 1 2 7M3 4v7h7M12 7v5l3 2"/>',
 };
 function icon(name, className = '') { return `<svg class="icon ${className}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[name] || icons.box}</svg>`; }
 function hydrateIcons(root = document) { root.querySelectorAll('[data-icon]').forEach(el => { el.innerHTML = icon(el.dataset.icon); }); }
@@ -114,7 +117,10 @@ Object.assign(dictionary.en, {
   openDataItems: 'metadata records', openDataMatched: 'matched items', openDataModels: 'avatars', openDataSnapshot: 'Snapshot',
   openDataSource: 'Data source', openDataLicense: 'License & attribution',
 });
-const filterArrays = ['category', 'avatar', 'author', 'tag', 'feature', 'fileType', 'localCategory'];
+const filterArrays = ['category', 'avatar', 'author', 'tag', 'excludeTag', 'feature', 'fileType', 'localCategory'];
+Object.assign(dictionary.zh, { excluded: '排除', includeTag: '包含标签', excludeTag: '排除标签', tagRules: '包含全部所选标签；排除任一指定标签。', recent: '最近浏览顺序', viewed: '已浏览', removeView: '移除浏览记录', emptyRecent: '还没有浏览记录', emptyRecentHint: '打开商品详情后，可在这里找回它。' });
+Object.assign(dictionary.en, { excluded: 'Exclude', includeTag: 'Include tag', excludeTag: 'Exclude tag', tagRules: 'Match all included tags; exclude any selected tag.', recent: 'Recently viewed order', viewed: 'Viewed', removeView: 'Remove from recent views', emptyRecent: 'No recently viewed items', emptyRecentHint: 'Open an item to find it here later.' });
+let discoveryUI = null;
 Object.assign(dictionary.zh, {
   purchased: '已购', purchaseFilter: '已购记录', purchaseAll: '不限', purchaseRecorded: '已同步已购', purchaseMissingLocal: '已购且本地未收录', purchaseNotRecorded: '未同步已购记录',
   purchaseTitle: '同步 BOOTH 已购清单', purchaseBadge: '已购记录', purchaseEmpty: '尚未同步已购清单', purchaseEmptyHint: '从已登录的 BOOTH 下载库导出商品清单，在数据管理中导入。',
@@ -150,14 +156,21 @@ Object.assign(dictionary.en, {
   syncNext: 'Next run', syncPending: 'Pending', syncLast: 'Last completed', syncAdded: 'Added', syncUpdated: 'Updated', syncSkipped: 'Skipped', syncFailed: 'Failed', syncNone: 'Not run yet',
 });
 let syncState = null, syncPollTimer;
-let serverPreferences = {}, preferenceTimer;
+let serverPreferences = {}, preferenceTimer, preferenceChanges = {}, preferenceWrites = Promise.resolve();
 try { serverPreferences = await fetch('/api/preferences').then(r => r.ok ? r.json() : {}); } catch {}
 function readStorage(key, fallback) { try { return serverPreferences[key] ?? JSON.parse(localStorage.getItem('vrc-local-' + key)) ?? fallback; } catch { return fallback; } }
 function writeStorage(key, value) {
   serverPreferences[key] = value;
   try { localStorage.setItem('vrc-local-' + key, JSON.stringify(value)); } catch {}
-  clearTimeout(preferenceTimer); preferenceTimer = setTimeout(() => fetch('/api/preferences', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(serverPreferences), keepalive: true }).then(r => { if (!r.ok) throw new Error(); }).catch(() => toast('界面设置保存失败')), 150);
+  preferenceChanges[key] = value;
+  clearTimeout(preferenceTimer); preferenceTimer = setTimeout(flushPreferences, 150);
 }
+function flushPreferences() {
+  const changes = preferenceChanges; preferenceChanges = {};
+  if (!Object.keys(changes).length) return;
+  preferenceWrites = preferenceWrites.then(() => fetch('/api/preferences', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(changes), keepalive: true }).then(r => { if (!r.ok) throw new Error(); })).catch(() => toast(lang === 'en' ? 'Could not save settings on this device.' : '界面设置保存失败'));
+}
+window.addEventListener('pagehide', flushPreferences);
 let lang = readStorage('language', 'zh');
 if (!dictionary[lang]) lang = 'zh';
 let currency = readStorage('currency', 'JPY');
@@ -167,7 +180,7 @@ if (!['charcoal', 'cloud'].includes(theme)) theme = 'charcoal';
 const favourites = new Set((Array.isArray(readStorage('favourites', [])) ? readStorage('favourites', []) : []).map(Number).filter(n => Number.isSafeInteger(n) && n > 0));
 // Import old per-browser settings once; shared desktop settings then survive origin changes.
 let importedBrowserPreferences = false;
-for (const key of ['language','currency','theme','favourites','compact','notice-dismissed']) {
+for (const key of ['language','currency','theme','favourites','compact','notice-dismissed','saved-searches','recent-views']) {
   if (serverPreferences[key] !== undefined) continue;
   try { const value = JSON.parse(localStorage.getItem('vrc-local-' + key)); if (value !== null) { serverPreferences[key] = value; importedBrowserPreferences = true; } } catch {}
 }
@@ -175,7 +188,7 @@ if (importedBrowserPreferences) fetch('/api/preferences', { method: 'POST', head
 const t = key => dictionary[lang][key] ?? key;
 let state = stateFromUrl();
 let data = null, allFacets = null, status = null, aborter = null, requestNumber = 0;
-let detail = null, detailIndex = 0, toastTimer;
+let detail = null, detailIndex = 0, detailRequest = 0, toastTimer;
 const expandedCategories = new Set();
 const locale = () => lang === 'zh' ? 'zh-CN' : 'en-US';
 const formatNumber = value => Number(value).toLocaleString(locale());
@@ -206,14 +219,14 @@ function effectiveAvailability() {
 function clearLocalFileFilters() {
   state.localCategory = []; state.fileType = []; state.minBytes = 0; state.duplicates = false;
 }
-function stateFromUrl() {
-  const params = new URLSearchParams(location.search);
+function stateFromUrl(query = location.search) {
+  const params = new URLSearchParams(query);
   const list = key => params.getAll(key).flatMap(v => v.split(',')).filter(Boolean).slice(0, 50);
   const value = {
-    view: ['items', 'avatars', 'favourites', 'local', 'purchased'].includes(params.get('view')) ? params.get('view') : 'items',
-    q: (params.get('q') || '').slice(0, 200), sort: params.get('sort') || 'trending', page: Math.max(1, Number(params.get('page')) || 1),
+    view: ['items', 'avatars', 'favourites', 'local', 'purchased', 'recent'].includes(params.get('view')) ? params.get('view') : 'items',
+    q: (params.get('q') || '').slice(0, 200), sort: params.get('sort') === 'recent' ? 'trending' : params.get('sort') || 'trending', page: Math.max(1, Number(params.get('page')) || 1),
     pageSize: [20, 40, 60, 100].includes(Number(params.get('pageSize'))) ? Number(params.get('pageSize')) : 20,
-    category: list('category'), avatar: list('avatar'), author: list('author'), tag: list('tag'), feature: list('feature'),
+    category: list('category'), avatar: list('avatar'), author: list('author'), tag: list('tag'), excludeTag: list('excludeTag'), feature: list('feature'),
     fileType: list('fileType'), localCategory: list('localCategory'),
     includeMentions: params.get('includeMentions') === '1',
     availability: ['local', 'missing'].includes(params.get('availability')) ? params.get('availability') : 'all',
@@ -222,6 +235,7 @@ function stateFromUrl() {
     min: Math.max(0, Number(params.get('min')) || 0), max: params.has('max') ? Math.max(0, Number(params.get('max')) || 0) : null,
     free: params.get('free') === '1', adult: ['safe', 'all', 'suggestive', 'adult'].includes(params.get('adult')) ? params.get('adult') : 'safe',
   };
+  value.tag = value.tag.filter(tag => !value.excludeTag.some(excluded => excluded.normalize('NFKC').toLowerCase() === tag.normalize('NFKC').toLowerCase()));
   if ((value.view === 'local' || hasLocalFileFilters(value)) && value.availability === 'missing') value.availability = 'all';
   return value;
 }
@@ -243,6 +257,7 @@ function paramsForState(includeIds = false) {
   if (state.free) p.set('free', '1');
   if (state.adult !== 'safe') p.set('adult', state.adult);
   if (includeIds && state.view === 'favourites') p.set('ids', [...favourites].join(','));
+  if (includeIds && state.view === 'recent') p.set('ids', (discoveryUI?.recentIds() || []).join(','));
   return p;
 }
 function syncUrl(replace = false) {
@@ -266,7 +281,13 @@ function change(key, value, { replace = false, keepPage = false } = {}) {
 }
 function toggleFilter(key, value) {
   if (state[key].includes(value)) state[key] = state[key].filter(v => v !== value);
-  else if (state[key].length < 50) state[key].push(value);
+  else if (state[key].length < 50) {
+    state[key].push(value);
+    if (key === 'tag' || key === 'excludeTag') {
+      const other = key === 'tag' ? 'excludeTag' : 'tag';
+      state[other] = state[other].filter(tag => tag.normalize('NFKC').toLowerCase() !== value.normalize('NFKC').toLowerCase());
+    }
+  }
   if (hasLocalFileFilters() && state.availability === 'missing') state.availability = 'all';
   state.page = 1; syncUrl(); syncInputs(); fetchItems();
 }
@@ -278,7 +299,9 @@ function resetFilters() {
 }
 function syncInputs() {
   $('#search').value = state.q;
-  $('#sort').value = state.sort;
+  $('#sort').value = state.view === 'recent' ? 'recent' : state.sort;
+  $('#sort').disabled = state.view === 'recent';
+  $('#sort option[value="recent"]').hidden = state.view !== 'recent';
   $('#sort').title = state.sort === 'trending' ? t('trendingHint') : '';
   $('#page-size').value = state.pageSize;
   $('#adult').value = state.adult;
@@ -313,6 +336,7 @@ function applyLanguage() {
   $('#language').value = lang; $('#currency').value = currency; $('#theme').value = theme;
   $('#currency').title = t('currencyHint');
   hydrateIcons();
+  discoveryUI?.refresh();
 }
 function toast(message) {
   clearTimeout(toastTimer);
@@ -339,7 +363,7 @@ async function fetchItems() {
   $('#grid').setAttribute('aria-busy', 'true');
   if (!data) $('#grid').innerHTML = skeleton();
   try {
-    const response = await api('/api/items?' + paramsForState(true), { signal: aborter.signal });
+    const response = await api('/api/items?' + paramsForState(true), { signal: aborter.signal, priority: 'high' });
     if (request !== requestNumber) return;
     data = response;
     if (!allFacets) allFacets = data.facets;
@@ -384,17 +408,20 @@ function renderOptions(key) {
   const current = new Map(data.facets[plural].map(value => [identifier(value), value]));
   const all = new Map([...(allFacets?.[plural] || []), ...data.facets[plural]].map(value => [identifier(value), value]));
   const query = $('#' + key + '-search').value.normalize('NFKC').toLowerCase().trim();
-  const options = [...all.values()].filter(value => key === 'avatar' ? query || current.get(identifier(value))?.count > 0 || state[key].includes(identifier(value)) : current.has(identifier(value)) || state[key].includes(identifier(value)))
+  if (key === 'tag') for (const name of [...state.tag, ...state.excludeTag]) if (!all.has(name)) all.set(name, { name, count: 0 });
+  const selected = value => state[key].includes(value) || (key === 'tag' && state.excludeTag.includes(value));
+  const options = [...all.values()].filter(value => key === 'avatar' ? query || current.get(identifier(value))?.count > 0 || selected(identifier(value)) : current.has(identifier(value)) || selected(identifier(value)))
     .filter(value => [value.name, value.en, value.ja, value.ko, value.slug, ...(value.aliases || [])].some(v => v?.normalize('NFKC').toLowerCase().includes(query)))
-    .sort((a, b) => Number(state[key].includes(identifier(b))) - Number(state[key].includes(identifier(a))) || (current.get(identifier(b))?.count || 0) - (current.get(identifier(a))?.count || 0)).slice(0, key === 'tag' ? 40 : 80);
+    .sort((a, b) => Number(selected(identifier(b))) - Number(selected(identifier(a))) || (current.get(identifier(b))?.count || 0) - (current.get(identifier(a))?.count || 0)).slice(0, key === 'tag' ? 40 : 80);
   const list = $('#' + key + '-list');
   list.innerHTML = options.length ? options.map(option => {
     const value = identifier(option), count = current.get(value)?.count || 0;
-    if (key === 'tag') return `<button class="filter-tag ${state.tag.includes(value) ? 'selected' : ''}" data-action="tag" data-value="${escape(value)}" aria-pressed="${state.tag.includes(value)}">${escape(value)}<span>${count}</span></button>`;
+    if (key === 'tag') return `<div class="tag-filter-option ${state.excludeTag.includes(value) ? 'excluded' : ''}"><button type="button" class="filter-tag ${state.tag.includes(value) ? 'selected' : ''}" data-action="tag" data-value="${escape(value)}" aria-label="${t('includeTag')} ${escape(value)}" aria-pressed="${state.tag.includes(value)}">${escape(value)}<span>${count}</span></button><button type="button" class="exclude-tag" data-action="exclude-tag" data-value="${escape(value)}" title="${t('excludeTag')} ${escape(value)}" aria-label="${t('excludeTag')} ${escape(value)}" aria-pressed="${state.excludeTag.includes(value)}">−</button></div>`;
     return `<label class="check-label option-row"><input type="checkbox" data-filter="${key}" value="${escape(value)}"${checked(key, value)}>${option.image ? `<img loading="lazy" src="${escape(option.image)}" alt="" width="25" height="25">` : '<span class="avatar-placeholder">' + icon(key === 'avatar' ? 'avatar' : 'box') + '</span>'}<span class="option-text">${escape(key === 'avatar' ? option.en : option.name)}${key === 'avatar' && option.ja && option.ja !== option.en ? `<small>${escape(option.ja)}</small>` : ''}</span><span class="option-count">${count}</span></label>`;
   }).join('') : `<p class="no-options">${t('noOptions')}</p>`;
 }
 function labelFor(key, value) {
+  if (key === 'excludeTag') return `${t('excluded')}: ${value}`;
   if (key === 'localCategory') return `${t('localCategory')}: ${value}`;
   if (key === 'fileType') return `${t('entryType')}: ${value === 'folder' ? t('folder') : value}`;
   if (key === 'category') {
@@ -410,7 +437,7 @@ function labelFor(key, value) {
 function renderActiveFilters() {
   const chips = [];
   if (state.q) chips.push(`<button class="filter-chip" data-action="remove-q">${icon('search')}${escape(state.q)}${icon('x')}</button>`);
-  for (const key of filterArrays) for (const value of state[key]) chips.push(`<button class="filter-chip" data-action="remove-filter" data-key="${key}" data-value="${escape(value)}">${escape(labelFor(key, value))}${icon('x')}</button>`);
+  for (const key of filterArrays) for (const value of state[key]) chips.push(`<button class="filter-chip ${key === 'excludeTag' ? 'excluded' : ''}" data-action="remove-filter" data-key="${key}" data-value="${escape(value)}">${escape(labelFor(key, value))}${icon('x')}</button>`);
   if (state.availability !== 'all') chips.push(`<button class="filter-chip" data-action="remove-local" data-key="availability">${t(state.availability === 'local' ? 'localPresent' : 'localMissing')}${icon('x')}</button>`);
   if (state.minBytes) chips.push(`<button class="filter-chip" data-action="remove-local" data-key="minBytes">≥ ${bytes(state.minBytes)}${icon('x')}</button>`);
   if (state.duplicates) chips.push(`<button class="filter-chip" data-action="remove-local" data-key="duplicates">${t('duplicates')}${icon('x')}</button>`);
@@ -432,16 +459,20 @@ function categoryFor(item) { const category = data.facets.categories.find(cat =>
 function renderCard(item) {
   const saved = favourites.has(item.id), title = itemTitle(item), bio = itemBio(item);
   return `<article class="product-card" data-item-id="${item.id}">
-    <div class="card-media"><button type="button" class="card-image-button" data-action="detail" data-id="${item.id}" aria-label="${escape(title)}"><img src="${escape(item.media[0] || '/placeholder.svg')}" alt="${escape(title)}" loading="lazy" decoding="async" width="400" height="400"></button>${item.purchase?.recorded ? `<span class="purchase-badge" title="${t('purchaseBasis')}">${icon('check')}${t('purchased')}</span>` : ''}<span class="price-badge ${item.priceKnown && item.price === 0 ? 'is-free' : ''}" title="${item.priceKnown ? 'JPY ' + formatNumber(item.price) : t('unknownPrice')}">${escape(itemPrice(item))}</span><button type="button" class="card-save ${saved ? 'saved' : ''}" data-action="favourite" data-id="${item.id}" aria-pressed="${saved}" aria-label="${t(saved ? 'savedLabel' : 'save')} ${escape(title)}">${icon('heart')}</button>${item.media.length > 1 ? `<span class="image-count">${icon('layers')}${item.media.length}</span>` : ''}</div>
-    <div class="card-body"><button type="button" class="card-title" data-action="detail" data-id="${item.id}" title="${escape(title)}">${escape(title)}</button><div class="card-meta"><button type="button" data-action="card-category" data-value="${escape(item.categorySlugs[0] || '')}" ${item.categorySlugs.length ? '' : 'disabled'}>${escape(categoryFor(item))}</button><span>·</span><time datetime="${escape(item.publishedAt || '')}">${date(item.publishedAt)}</time></div><p class="card-bio">${escape(bio || '—')}</p></div>
+    <div class="card-media"><button type="button" class="card-image-button" data-action="detail" data-id="${item.id}" aria-label="${escape(title)}"><img data-image-candidates="${escape(JSON.stringify(item.media.slice(1)))}" src="${escape(item.media[0] || '/placeholder.svg')}" alt="${escape(title)}" loading="lazy" decoding="async" width="400" height="400"></button>${item.purchase?.recorded ? `<span class="purchase-badge" title="${t('purchaseBasis')}">${icon('check')}${t('purchased')}</span>` : ''}<span class="price-badge ${item.priceKnown && item.price === 0 ? 'is-free' : ''}" title="${item.priceKnown ? 'JPY ' + formatNumber(item.price) : t('unknownPrice')}">${escape(itemPrice(item))}</span><button type="button" class="card-save ${saved ? 'saved' : ''}" data-action="favourite" data-id="${item.id}" aria-pressed="${saved}" aria-label="${t(saved ? 'savedLabel' : 'save')} ${escape(title)}">${icon('heart')}</button>${item.media.length > 1 ? `<span class="image-count">${icon('layers')}${item.media.length}</span>` : ''}</div>
+    <div class="card-body"><button type="button" class="card-title" data-action="detail" data-id="${item.id}" title="${escape(title)}">${escape(title)}</button><div class="card-meta"><button type="button" data-action="card-category" data-value="${escape(item.categorySlugs[0] || '')}" ${item.categorySlugs.length ? '' : 'disabled'}>${escape(categoryFor(item))}</button><span>·</span><time datetime="${escape(item.publishedAt || '')}">${date(item.publishedAt)}</time></div><p class="card-bio">${escape(bio.slice(0, 600) || '—')}</p></div>
     <button type="button" class="card-local ${item.local?.known && item.local.copies ? 'present' : ''}" data-action="detail" data-id="${item.id}" title="${t('scanBasis')}">${icon(item.local?.copies ? 'check' : 'database')}<span>${localLabel(item)}</span>${item.local?.copies ? `<small>${item.local.copies} · ${bytes(item.local.bytes)}</small>` : ''}</button>
     <details class="card-details"><summary><span>${t('metadata')}</span><span class="metadata-badges"><span>${item.tags.length} ${t('tagUnit')}</span><span>${item.variations.length} ${t('variations')}</span></span>${icon('chevron')}</summary><div class="card-details-body"><p>${escape(bio.slice(0, 600))}</p><div class="tag-cloud">${item.tags.slice(0, 20).map(tag => `<button data-action="tag" data-value="${escape(tag)}">${escape(tag)}</button>`).join('')}</div><button class="text-button accent" data-action="detail" data-id="${item.id}">${t('description')} ${icon('arrow')}</button></div></details>
     <div class="card-footer"><a class="card-author" href="${escape(item.authorUrl || item.url)}" target="_blank" rel="noopener noreferrer">${item.authorIcon ? `<img src="${escape(item.authorIcon)}" alt="" loading="lazy" width="17" height="17">` : icon('avatar')}<span>${escape(item.author)}</span></a><span class="card-likes" title="BOOTH likes">${icon('heart')}${formatNumber(item.likes)}</span><button class="avatar-count" data-action="detail" data-id="${item.id}" title="${t('supportedAvatars')}">${icon('avatar')}${item.avatars.length}</button></div>
+    ${discoveryUI?.hasViewed(item.id) ? `<div class="recent-card-actions"><span>${icon('history')} ${t('viewed')}</span>${state.view === 'recent' ? `<button type="button" class="text-button" data-discovery="remove-view" data-id="${item.id}">${t('removeView')}</button>` : ''}</div>` : ''}
   </article>`;
 }
 function renderGrid() {
   if (data.items.length) $('#grid').innerHTML = data.items.map(renderCard).join('');
   else {
+    if (state.view === 'recent' && !discoveryUI?.recentIds().length) {
+      $('#grid').innerHTML = `<div class="empty-state">${icon('history')}<h2>${t('emptyRecent')}</h2><p>${t('emptyRecentHint')}</p><button class="btn primary" data-action="view" data-view="items">${t('explore')}</button></div>`; return;
+    }
     if (state.view === 'purchased' && !data.purchases?.products) {
       $('#grid').innerHTML = `<div class="empty-state">${icon('check')}<h2>${t('purchaseEmpty')}</h2><p>${t('purchaseEmptyHint')}</p><button class="btn primary" data-action="purchase-settings">${t('purchaseTitle')}</button></div>`; return;
     }
@@ -451,6 +482,7 @@ function renderGrid() {
 }
 function render() {
   renderSidebar(); renderGrid(); renderPagination(); renderActiveFilters();
+  discoveryUI?.refresh();
   $('#result-count').innerHTML = `<span class="speed">${icon('flame')}${data.elapsedMs}ms</span><strong>${formatNumber(data.count)}</strong><span>${t('results')}</span>`;
   const library = data.library;
   $('#catalog-status').textContent = `${t('discovery')} ${formatNumber(data.discoveryRecords)} · ${t('localProducts')} ${library?.connected ? formatNumber(library.products) : '—'} · ${t('union')} ${formatNumber(data.totalRecords)}`;
@@ -468,9 +500,13 @@ function toggleFavourite(id) {
   if ($('#detail-dialog').open && detail?.id === id) renderDetail();
 }
 async function openDetail(id) {
+  const request = ++detailRequest;
   try {
-    detail = data.items.find(item => item.id === id) || await api('/api/items/' + id); detailIndex = 0;
+    const item = data?.items.find(item => item.id === id) || await api('/api/items/' + id);
+    if (request !== detailRequest) return;
+    detail = item; detailIndex = 0;
     renderDetail(); $('#detail-dialog').showModal();
+    discoveryUI?.recordView(id);
   } catch (error) { toast(error.message); }
 }
 function renderLocalDetail(item) {
@@ -489,7 +525,7 @@ function renderOpenDataSection() {
 function renderDetail() {
   if (!detail) return;
   const item = detail, saved = favourites.has(item.id), count = Math.max(1, item.media.length);
-  $('#detail-dialog').innerHTML = `<button type="button" class="dialog-close icon-btn" data-action="close-dialog" aria-label="${t('close')}">${icon('x')}</button><div class="detail-layout"><div class="detail-gallery"><div class="detail-image"><img src="${escape(item.media[detailIndex] || '/placeholder.svg')}" alt="${escape(itemTitle(item))}" width="700" height="700">${count > 1 ? `<button type="button" class="gallery-arrow prev" data-action="gallery-prev" aria-label="Previous image">${icon('chevron')}</button><button type="button" class="gallery-arrow" data-action="gallery-next" aria-label="Next image">${icon('chevron')}</button><span class="gallery-counter">${detailIndex + 1} / ${count}</span>` : ''}</div><div class="gallery-thumbs">${item.media.slice(0, 30).map((src, index) => `<button type="button" class="${detailIndex === index ? 'active' : ''}" data-action="gallery-index" data-index="${index}" aria-label="Image ${index + 1}" aria-pressed="${detailIndex === index}"><img src="${escape(src)}" alt="" loading="lazy" width="56" height="56"></button>`).join('')}</div></div><div class="detail-info"><span class="detail-category">${escape(categoryFor(item))}</span><h1>${escape(itemTitle(item))}</h1><a class="detail-author" href="${escape(item.authorUrl || item.url)}" target="_blank" rel="noopener noreferrer">${item.authorIcon ? `<img src="${escape(item.authorIcon)}" alt="" width="28" height="28">` : ''}${escape(item.author)}${icon('external')}</a><div class="detail-price">${escape(itemPrice(item))}<span>${item.variations.length > 1 ? t('from') : ''}</span></div>${currency !== 'JPY' && item.priceKnown ? `<p class="currency-note">${t('approximate')} · JPY ¥${formatNumber(item.price)}</p>` : ''}<div class="detail-actions"><a class="btn primary" href="${escape(item.url)}" target="_blank" rel="noopener noreferrer">${t('buy')}${icon('external')}</a><button type="button" class="btn favourite-button ${saved ? 'saved' : ''}" data-action="favourite" data-id="${item.id}" aria-pressed="${saved}">${icon('heart')}${t(saved ? 'savedLabel' : 'save')}</button></div>${item.purchase?.recorded ? `<section class="detail-section purchase-detail"><h2>${icon('check')}${t('purchaseBadge')}</h2><p class="feature-note">${t('purchaseBasis')} · ${date(item.purchase.importedAt)}</p></section>` : ''}${renderLocalDetail(item)}${renderAvatarDetails(item)}<div class="detail-section"><h2>${t('variants')}</h2><div class="variant-list">${item.variations.map(variant => `<div><span>${escape(variant.name)}</span><strong>${escape(money(variant.price))}</strong></div>`).join('') || '<p class="muted">—</p>'}</div></div><div class="detail-section"><h2>${t('description')}</h2><p class="detail-description">${escape(itemBio(item))}</p></div><div class="detail-section"><h2>${t('tags')}</h2><div class="tag-cloud">${item.tags.map(tag => `<button data-action="detail-tag" data-value="${escape(tag)}">${escape(tag)}</button>`).join('')}</div></div><div class="detail-bottom"><span>${t('published')} ${date(item.publishedAt)} · #${item.id}</span><button type="button" class="text-button" data-action="refresh-item" data-id="${item.id}">${icon('refresh')}${t('refresh')}</button></div></div></div>`;
+  $('#detail-dialog').innerHTML = `<button type="button" class="dialog-close icon-btn" data-action="close-dialog" aria-label="${t('close')}">${icon('x')}</button><div class="detail-layout"><div class="detail-gallery"><div class="detail-image"><img data-image-candidates="${escape(JSON.stringify(item.media.filter((_,index)=>index!==detailIndex)))}" src="${escape(item.media[detailIndex] || '/placeholder.svg')}" alt="${escape(itemTitle(item))}" width="700" height="700">${count > 1 ? `<button type="button" class="gallery-arrow prev" data-action="gallery-prev" aria-label="Previous image">${icon('chevron')}</button><button type="button" class="gallery-arrow" data-action="gallery-next" aria-label="Next image">${icon('chevron')}</button><span class="gallery-counter">${detailIndex + 1} / ${count}</span>` : ''}</div><div class="gallery-thumbs">${item.media.slice(0, 30).map((src, index) => `<button type="button" class="${detailIndex === index ? 'active' : ''}" data-action="gallery-index" data-index="${index}" aria-label="Image ${index + 1}" aria-pressed="${detailIndex === index}"><img src="${escape(src)}" alt="" loading="lazy" width="56" height="56"></button>`).join('')}</div></div><div class="detail-info"><span class="detail-category">${escape(categoryFor(item))}</span><h1>${escape(itemTitle(item))}</h1><a class="detail-author" href="${escape(item.authorUrl || item.url)}" target="_blank" rel="noopener noreferrer">${item.authorIcon ? `<img src="${escape(item.authorIcon)}" alt="" width="28" height="28">` : ''}${escape(item.author)}${icon('external')}</a><div class="detail-price">${escape(itemPrice(item))}<span>${item.variations.length > 1 ? t('from') : ''}</span></div>${currency !== 'JPY' && item.priceKnown ? `<p class="currency-note">${t('approximate')} · JPY ¥${formatNumber(item.price)}</p>` : ''}<div class="detail-actions"><a class="btn primary" href="${escape(item.url)}" target="_blank" rel="noopener noreferrer">${t('buy')}${icon('external')}</a><button type="button" class="btn favourite-button ${saved ? 'saved' : ''}" data-action="favourite" data-id="${item.id}" aria-pressed="${saved}">${icon('heart')}${t(saved ? 'savedLabel' : 'save')}</button></div>${item.purchase?.recorded ? `<section class="detail-section purchase-detail"><h2>${icon('check')}${t('purchaseBadge')}</h2><p class="feature-note">${t('purchaseBasis')} · ${date(item.purchase.importedAt)}</p></section>` : ''}${renderLocalDetail(item)}${renderAvatarDetails(item)}<div class="detail-section"><h2>${t('variants')}</h2><div class="variant-list">${item.variations.map(variant => `<div><span>${escape(variant.name)}</span><strong>${escape(money(variant.price))}</strong></div>`).join('') || '<p class="muted">—</p>'}</div></div><div class="detail-section"><h2>${t('description')}</h2><p class="detail-description">${escape(itemBio(item))}</p></div><div class="detail-section"><h2>${t('tags')}</h2><div class="tag-cloud">${item.tags.map(tag => `<button data-action="detail-tag" data-value="${escape(tag)}">${escape(tag)}</button>`).join('')}</div></div><div class="detail-bottom"><span>${t('published')} ${date(item.publishedAt)} · #${item.id}</span><button type="button" class="text-button" data-action="refresh-item" data-id="${item.id}">${icon('refresh')}${t('refresh')}</button></div></div></div>`;
 }
 function openData() {
   $('#data-dialog').innerHTML = `<div class="dialog-heading"><div class="dialog-heading-icon">${icon('database')}</div><div><h1>${t('dataTitle')}</h1><p>${t('dataSubtitle')}</p></div><button class="icon-btn" data-action="close-dialog" aria-label="${t('close')}">${icon('x')}</button></div><div class="library-stats"><div><strong>${formatNumber(status?.items ?? data?.totalRecords ?? 0)}</strong><span>${t('count')}</span></div><div><strong>${favourites.size}</strong><span>${t('favourites')}</span></div><div><strong>${date(status?.capturedAt)}</strong><span>${t('snapshot')}</span></div></div><section class="data-section"><h2>${icon('plus')}${t('addTitle')}</h2><p>${t('addHint')}</p><form id="booth-form"><label class="sr-only" for="booth-url">BOOTH URL / ID</label><input id="booth-url" type="text" required placeholder="https://booth.pm/ja/items/…" autocomplete="off"><button class="btn primary" type="submit">${t('add')}</button></form><p id="booth-feedback" class="form-feedback" role="status"></p></section>${renderOpenDataSection()}<section class="data-section"><h2>${icon('download')}${t('backupTitle')}</h2><p>${t('importHint')}</p><div class="data-actions"><button class="btn" data-action="export-catalog">${icon('download')}${t('exportCatalog')}</button><button class="btn" data-action="export-favourites">${icon('heart')}${t('exportFavourites')}</button><label class="btn import-label" tabindex="0">${icon('upload')}${t('import')}<input id="import-file" type="file" accept=".json,application/json" aria-label="${t('chooseFile')}"></label></div><p id="import-feedback" class="form-feedback" role="status"></p></section><p class="data-note">${icon('info')}${t('dataNote')}</p>`;
@@ -665,6 +701,7 @@ document.addEventListener('click', async event => {
   if (action === 'view') { if (button.dataset.view === 'local') state.availability = 'all'; if (button.dataset.view === 'purchased' && state.purchase === 'not-recorded') state.purchase = 'all'; change('view', button.dataset.view); document.body.classList.remove('filters-open'); }
   else if (action === 'page') { change('page', Number(button.dataset.page), { keepPage: true }); $('#results').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
   else if (action === 'clear') change(button.dataset.key, []);
+  else if (action === 'clear-tags') { state.excludeTag = []; change('tag', []); }
   else if (action === 'reset') resetFilters();
   else if (action === 'remove-filter') toggleFilter(button.dataset.key, button.dataset.value);
   else if (action === 'remove-q') change('q', '');
@@ -708,6 +745,7 @@ document.addEventListener('click', async event => {
     finally { button.disabled = false; }
   }
   else if (action === 'tag') toggleFilter('tag', button.dataset.value);
+  else if (action === 'exclude-tag') toggleFilter('excludeTag', button.dataset.value);
   else if (action === 'card-category') toggleFilter('category', button.dataset.value);
   else if (action === 'expand-category') { const slug = button.dataset.value; if (expandedCategories.has(slug)) expandedCategories.delete(slug); else expandedCategories.add(slug); renderSidebar(); }
   else if (action === 'favourite') toggleFavourite(Number(button.dataset.id));
@@ -758,7 +796,9 @@ document.addEventListener('change', event => {
   else if (el.id === 'purchase-files' && el.files.length) importPurchaseFiles(el.files);
 });
 let searchTimer;
-$('#search').addEventListener('input', event => { clearTimeout(searchTimer); const value = event.target.value; searchTimer = setTimeout(() => change('q', value, { replace: true }), 220); });
+function scheduleSearch(event) { clearTimeout(searchTimer); if (event.isComposing) return; const value = event.target.value; searchTimer = setTimeout(() => change('q', value, { replace: true }), 120); }
+$('#search').addEventListener('input', scheduleSearch);
+$('#search').addEventListener('compositionend', scheduleSearch);
 $('#search-form').addEventListener('submit', event => { event.preventDefault(); clearTimeout(searchTimer); change('q', $('#search').value, { replace: true }); });
 ['avatar', 'author', 'tag'].forEach(key => $('#' + key + '-search').addEventListener('input', () => renderOptions(key)));
 document.addEventListener('submit', async event => {
@@ -799,7 +839,14 @@ document.addEventListener('submit', async event => {
   } catch (error) { feedback.textContent = error.message; feedback.classList.add('error'); }
   finally { button.disabled = false; button.textContent = t('add'); }
 });
-document.addEventListener('error', event => { const img = event.target; if (img.tagName === 'IMG' && !img.dataset.fallback) { img.dataset.fallback = 'true'; img.src = '/placeholder.svg'; } }, true);
+document.addEventListener('error', event => {
+  const img = event.target;
+  if (img.tagName !== 'IMG' || img.dataset.fallback) return;
+  let candidates = []; try { candidates = JSON.parse(img.dataset.imageCandidates || '[]'); } catch {}
+  const next = candidates.shift(); img.dataset.imageCandidates = JSON.stringify(candidates);
+  if (!next) img.dataset.fallback = 'true';
+  img.src = next || '/placeholder.svg';
+}, true);
 $$('dialog').forEach(dialog => dialog.addEventListener('click', event => { if (event.target === dialog) { const rect = dialog.getBoundingClientRect(); if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) dialog.close(); } }));
 document.addEventListener('keydown', event => {
   if (event.key === '/' && !event.ctrlKey && !event.metaKey && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) && !$$('dialog[open]').length) { event.preventDefault(); $('#search').focus(); }
@@ -810,6 +857,27 @@ window.addEventListener('popstate', () => { clearTimeout(searchTimer); state = s
 document.documentElement.dataset.theme = theme;
 $('#notice').hidden = readStorage('notice-dismissed', false);
 $('#grid').classList.toggle('compact', readStorage('compact', false));
+discoveryUI = initDiscovery({
+  api, escape, icon, language: () => lang, readStorage, writeStorage, getView: () => state.view,
+  getQuery: () => {
+    const query = paramsForState(), q = $('#search').value.trim();
+    if (q) query.set('q', q); else query.delete('q');
+    return query.toString();
+  },
+  applyQuery: query => {
+    clearTimeout(searchTimer); state = stateFromUrl('?' + savedFilterQuery(query));
+    syncUrl(); syncInputs(); document.body.classList.remove('filters-open'); fetchItems();
+  },
+  selectGroup: (group, value) => {
+    clearTimeout(searchTimer);
+    const query = new URLSearchParams({ adult: state.adult });
+    query.set(({ avatars: 'avatar', authors: 'author', tags: 'tag', query: 'q' })[group], value);
+    state = stateFromUrl('?' + query); syncUrl(); syncInputs(); fetchItems();
+  },
+  openItem: openDetail,
+  onHistoryChange: () => { if (state.view === 'recent') fetchItems(); else if (data) renderGrid(); },
+  toast,
+});
 applyLanguage(); syncInputs();
 const setupSection = new URLSearchParams(location.search).get('setup');
 const scanButton = document.createElement('button'); scanButton.className = 'btn'; scanButton.type = 'button'; scanButton.dataset.scanOpen = ''; scanButton.textContent = lang === 'zh' ? '扫描下载目录' : 'Scan downloads'; $('#results .toolbar-left').append(scanButton);

@@ -426,7 +426,7 @@ class Pipeline:
 
     def _match_cluster(self, qt, ch, roots, pool, offline=False) -> dict | None:
         # 离线：线性扫描候选池（池子通常几百个，一次几毫秒）
-        best = None
+        matches = []
         for (iid, nm, shp, sub) in pool:
             r = M.evaluate(qt, nm, shp, sub, ch)
             if not r["accept"]:
@@ -436,9 +436,9 @@ class Pipeline:
                 r["shop_cross"] = True
             else:
                 r["shop_cross"] = False
-            if best is None or r["score"] > best["score"]:
-                r.update({"id": iid, "name": nm, "shop": shp, "how": "offline"})
-                best = r
+            r.update({"id": iid, "name": nm, "shop": shp, "how": "offline"})
+            matches.append(r)
+        best = M.best_match(matches)
         if best:
             if not offline and best["id"] not in self._refreshed_ids:
                 self.client.get_item(best["id"], force=self._force)
@@ -449,22 +449,15 @@ class Pipeline:
             return None
 
         # 在线：整串优先，其次词元
-        queries = []
-        for c in sorted(ch, key=len, reverse=True)[:3]:
-            if len(c) >= 5:
-                queries.append(c)
-        qs = sorted(qt, key=len, reverse=True)
-        queries += [t for t in qs[:4] if len(t) >= 4]
-        if len(qs) >= 2 and len(qs[0]) >= 4 and len(qs[1]) >= 4:
-            queries.append(qs[0] + " " + qs[1])
-        queries = list(dict.fromkeys(queries))[:6]
+        queries = M.search_queries(qt, ch)
         if not queries:
             return None
 
         cands: dict[str, dict] = {}
         long_hits: list[str] = []
         for q in queries:
-            is_chunk = q in ch and len(M.norm_text(q)) >= 8
+            is_chunk = ((q in ch and len(M.norm_text(q)) >= 8)
+                        or (len(q.split()) >= 2 and len(M.norm_text(q)) >= 6))
             if self._stopped():
                 raise InterruptedError("已取消")
             got = self.client.search_cards(q, force=self._force)
@@ -517,7 +510,7 @@ class Pipeline:
         #   且第二次运行全部命中 verify/ 缓存，几乎零网络。
         self._warm_verify(verify)
 
-        best = None
+        matches = []
         for cid in verify:
             d = self._verify_get(cid)
             if not d:
@@ -529,25 +522,30 @@ class Pipeline:
                 continue
             r["score"] += 0.5                 # 完整标题证据更硬
             r["shop_cross"] = False
-            if best is None or r["score"] > best["score"]:
-                r.update({"id": cid, "name": d.get("name", ""),
-                          "shop": sh.get("name", ""), "how": "online-full"})
-                best = r
+            r.update({"id": cid, "name": d.get("name", ""),
+                      "shop": sh.get("name", ""), "how": "online-full"})
+            matches.append(r)
+        best = M.best_match(matches)
         if best:
             # 命中的这个才值得进离线候选池
             self.client.get_item(best["id"])
             return best
 
+        # A full-title tie must not be resolved by truncated search cards.
+        if matches:
+            return None
+        matches = []
         for cid, c in cands.items():
             r = M.evaluate(qt, c["name"], c.get("shop", ""), "", ch)
             if not r["accept"]:
                 continue
             r["shop_cross"] = False
-            if best is None or r["score"] > best["score"]:
-                r.update({"id": cid, "name": c["name"], "shop": c.get("shop", ""),
-                          "how": "online-card"})
-                best = r
-        return best
+            if r.get("exact_name"):
+                continue
+            r.update({"id": cid, "name": c["name"], "shop": c.get("shop", ""),
+                      "how": "online-card"})
+            matches.append(r)
+        return M.best_match(matches)
 
     # ---------------------------------------------------------- 组装
     def _build(self, items, probe, resolved, rules=None) -> dict:

@@ -13,7 +13,7 @@ def main():
                  "-p", "test_public_release.py", "-v"]]
     commands.append([sys.executable, "-m", "unittest", "discover", "-s", "tests",
                      "-p", "test_functional_features.py", "-v"])
-    for name in ("test_matching.py", "test_schema.py", "test_sort_time.py",
+    for name in ("test_matching.py", "test_automatic_identification.py", "test_schema.py", "test_sort_time.py",
                  "test_ui_search.py", "_check_ui_syntax.py"):
         commands.append([sys.executable, str(ROOT / "tests" / name)])
     for command in commands:

@@ -162,7 +162,7 @@ input[type="range"] { accent-color: var(--accent); width: 100%; height: 4px; mar
 .filter-chip .icon { width: 10px; height: 10px; }
 .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 13px; align-items: start; }
 .product-grid.compact { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
-.product-card { background: var(--panel); border: 1px solid var(--border); border-radius: 5px; overflow: hidden; min-width: 0; transition: border-color .15s; }
+.product-card { background: var(--panel); border: 1px solid var(--border); border-radius: 5px; overflow: hidden; min-width: 0; transition: border-color .15s; content-visibility: auto; contain-intrinsic-block-size: auto 560px; }
 .product-card:hover { border-color: #77717c; }
 .card-media { position: relative; aspect-ratio: 1; background: var(--panel-2); overflow: hidden; }
 .card-image-button { display: block; width: 100%; height: 100%; }

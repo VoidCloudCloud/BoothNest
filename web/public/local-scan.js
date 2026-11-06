@@ -21,6 +21,9 @@ export function initLocalScan({ api, escape: esc, language, onChanged }) {
     clearTimeout(timer);
     try {
       const value = await api('/api/scan/status'); show(value, fill);
+      // The initial catalogue request already includes the last completed scan.
+      // Only a completion observed after this page opened needs another refresh.
+      if (seenTask === undefined) seenTask = value.task.finished ? value.task.task_id : null;
       if (value.task.finished && value.task.result?.ok && seenTask !== value.task.task_id) { seenTask = value.task.task_id; await onChanged(); }
     } catch (error) { if (dialog.open) $('#scan-feedback').textContent = error.message; }
     if (active) timer = setTimeout(poll, latest?.task.busy ? 1000 : 10000);

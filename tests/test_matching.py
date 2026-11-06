@@ -53,6 +53,19 @@ case("店铺佐证 NyamLoveRaider", "NyamLoveRaider_material_v.1.00.zip",
      "【13avatars】NyamLoveRaider -VRC想定-", "Nya!byte", "nyabyte", True)
 
 # ---------------- 应当拒绝（全部是实战假阳性）----------------
+case("点号目录与短词 Yoi_Koi", "【17人适配】LV.16 Yoi_Koi",
+     "【19アバター対応】 𝐋𝐕.𝟏𝟔 Yoi_Koi 🎐", "LookVook", "lookvook", True)
+case("点号目录 VECTORIAL", "__00.VECTORIAL_STRUCT_PSD",
+     "🚧VECTORIAL STRUCT", "DoXtore", "doxtore", True)
+case("花体与短词 Wing Veil", "【8人适配】Wing Veil",
+     "✨8アバター対応✨ଘ 𝑾𝒊𝒏𝒈 𝑽𝒆𝒊𝒍", "balgu", "balgu", True)
+case("完整短词 Sexy Bomb", "【19人适配】Sexy Bomb",
+     "Sexy Bomb 【19アバター対応】", "overay", "overay", True)
+case("打包后缀 RIVAGE", "RIVAGE_MaterialPackage_v_1.0.zip",
+     "MAISONDARC. Summer Collection - RIVAGE ♘", "MAISONDARC.", "maisondarc", True)
+case("短词不能命中不同商品", "Red_Fox.zip", "Red Fox Plush", "Example", "example", False)
+case("短词不能部分命中", "Yoi_Koi.zip", "Koi Hair", "Example", "example", False)
+
 case("反例 Ravenor≠Night Raven", "Ravenor.jpg",
      "🐦‍⬛【VRC 衣装】Night Raven - Noir", "VELLIE", "vellie", False)
 case("反例 Cuddle Coddle", "Materials_Cuddle_Coddle_v1.0.zip",

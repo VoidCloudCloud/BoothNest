@@ -25,6 +25,7 @@
 !/tests/test_public_release.py
 !/tests/test_functional_features.py
 !/tests/test_matching.py
+!/tests/test_automatic_identification.py
 !/tests/test_schema.py
 !/tests/test_sort_time.py
 !/tests/test_ui_search.py
@@ -61,3 +62,6 @@ manual_overrides.json
 /web/resources/*.manifest.json
 /web/.env
 /web/node_modules/
+
+# Pairing credentials are local runtime state.
+purchase-bridge.json*
