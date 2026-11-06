@@ -13,7 +13,7 @@ def source_files(root: Path):
              "CHANGELOG.md", "PRIVACY.md", "SECURITY.md", "THIRD_PARTY_NOTICES.md", "CONTRIBUTING.md",
              ".gitignore", ".gitattributes", "build/booth_nest.spec", "build/version_info.txt"}
     names.update("tools/" + n for n in ("build_release.py", "check_release.py", "make_installer.py", "test.py"))
-    names.update("tests/" + n for n in ("test_public_release.py", "test_matching.py", "test_schema.py",
+    names.update("tests/" + n for n in ("test_public_release.py", "test_matching.py", "test_automatic_identification.py", "test_schema.py",
                                        "test_sort_time.py", "test_ui_search.py", "_check_ui_syntax.py", "test_functional_features.py"))
     names.update(p.relative_to(root).as_posix() for p in (root / "boothlib").glob("*.py"))
     names.add("boothlib/ui.html")
