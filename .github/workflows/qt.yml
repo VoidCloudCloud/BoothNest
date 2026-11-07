@@ -1,0 +1,50 @@
+name: Qt desktop checks
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: qt-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  qt-windows:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-python@v7.0.0
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: '24'
+      - name: Install native client and build requirements
+        run: python -m pip install -r web/requirements-qt.txt -r web/requirements-build.txt
+      - name: Check native behaviour and launcher lifecycle
+        working-directory: web/desktop
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python -m unittest test_qt_client test_launcher -v
+      - name: Build an empty native client and corresponding source
+        shell: pwsh
+        run: |
+          $nodePath = (Get-Command node).Source
+          python web/desktop/build_qt.py --node $nodePath --output "$env:RUNNER_TEMP/boothnest-qt"
+      - name: Check packaged entry point
+        shell: pwsh
+        run: |
+          $program = Join-Path $env:RUNNER_TEMP 'boothnest-qt/dist/BoothNestQt/BoothNestQt.exe'
+          $probe = Start-Process -FilePath $program -ArgumentList '--help' -WindowStyle Hidden -PassThru -Wait
+          if ($probe.ExitCode -ne 0) { throw "Qt entry point failed: $($probe.ExitCode)" }
+      - uses: actions/upload-artifact@v7.0.2
+        with:
+          name: BoothNest-Qt-Windows
+          path: |
+            ${{ runner.temp }}/boothnest-qt/BoothNestQt-windows-x64.zip
+            ${{ runner.temp }}/boothnest-qt/BoothNestQt-source.zip
+            ${{ runner.temp }}/boothnest-qt/SHA256SUMS.txt
+            ${{ runner.temp }}/boothnest-qt/manifest.json
+          retention-days: 14

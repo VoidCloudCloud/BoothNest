@@ -8,3 +8,5 @@
 *.ps1 text eol=crlf
 *.png binary
 docs/licenses/* -whitespace
+# Preserve third-party license text verbatim, including upstream whitespace.
+web/licenses/* -whitespace

@@ -4,6 +4,7 @@
 
 [![Website checks](https://github.com/VoidCloudCloud/BoothNest/actions/workflows/website.yml/badge.svg)](https://github.com/VoidCloudCloud/BoothNest/actions/workflows/website.yml)
 [![Windows checks](https://github.com/VoidCloudCloud/BoothNest/actions/workflows/ci.yml/badge.svg)](https://github.com/VoidCloudCloud/BoothNest/actions/workflows/ci.yml)
+[![Qt desktop checks](https://github.com/VoidCloudCloud/BoothNest/actions/workflows/qt.yml/badge.svg)](https://github.com/VoidCloudCloud/BoothNest/actions/workflows/qt.yml)
 [![License: GPL-3.0-only](https://img.shields.io/badge/license-GPL--3.0--only-blue.svg)](LICENSE)
 
 ## 下载哪个版本
@@ -18,6 +19,12 @@
 **新版网站目前发布的是源码包，未提供新版免运行环境 EXE 或安装包。** `Start.cmd` 需要已安装的 Node.js，不会自动安装运行环境或打开浏览器。Windows Beta 4 EXE 沿用桌面界面，并包含多层目录识别修复；网站源码包与桌面程序分别更新。
 
 [网站发布说明与校验文件](https://github.com/VoidCloudCloud/BoothNest/releases/tag/web-v2.0.0-beta.7) · [网站运行 / Docker 部署](web/README.md) · [旧数据兼容与升级](web/docs/UPGRADING.md) · [问题反馈](https://github.com/VoidCloudCloud/BoothNest/issues/new/choose)
+
+## 原生 Qt 客户端（主分支预览）
+
+主分支新增 PySide6 / Qt Widgets 客户端，使用原生图库、表格与对话框。支持现有素材浏览和库存管理流程，并包含中英文、JPY / CNY / USD 参考价格、深浅主题、Ctrl+K 商品 / 模型 / 作者 / 标签查找及公开筛选分享。
+
+源码运行与 Windows 打包见 [Qt 客户端说明](web/docs/QT_CLIENT.md)。[Qt desktop checks](https://github.com/VoidCloudCloud/BoothNest/actions/workflows/qt.yml) 的成功构建提供 `BoothNest-Qt-Windows` artifact，内含程序 ZIP、对应源码 ZIP 和 SHA-256。Qt 程序完整解压后运行 `BoothNestQt.exe`，无需安装 Python、Node.js 或浏览器；发布包从空库开始，已有用户用 `--home` 连接自己的数据目录。上方 Release 下载仍对应各自已发布版本。
 
 ## 新版网站的界面与数据
 
